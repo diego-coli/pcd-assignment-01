@@ -1,6 +1,10 @@
-package pcd.ass01;
+package pcd.ass01.sequential;
 
 import java.util.Optional;
+
+import pcd.ass01.model.Boid;
+import pcd.ass01.model.BoidsModel;
+import pcd.ass01.view.BoidsView;
 
 public class BoidsSimulator {
 

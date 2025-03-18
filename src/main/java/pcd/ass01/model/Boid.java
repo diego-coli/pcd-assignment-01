@@ -1,7 +1,10 @@
-package pcd.ass01;
+package pcd.ass01.model;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import pcd.ass01.common.P2d;
+import pcd.ass01.common.V2d;
 
 public class Boid {
 

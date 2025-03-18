@@ -1,5 +1,9 @@
 package pcd.ass01;
 
+import pcd.ass01.model.BoidsModel;
+import pcd.ass01.sequential.BoidsSimulator;
+import pcd.ass01.view.BoidsView; // Ensure this is the correct package for BoidsView
+
 public class BoidsSimulation {
 
 	final static int N_BOIDS = 1500;
