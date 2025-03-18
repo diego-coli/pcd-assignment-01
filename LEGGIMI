@@ -1,0 +1,11 @@
+Separation = quanto un gruppo di boids devono essere distanziati l'uno dall'altro
+Allignment = boid cambia direzione per allinearsi alla traiettoria degli altri
+Cohesion = boid cambia direzione per muoversi verso baricentro degli altri
+
+Simulation -> MAIN (JUST CHANGE A LITTLE)
+Simulator -> MANAGE SIMULATION (TO MODIFY)
+Panel -> DO NOT TOUCH
+View -> ADD START/STOP BUTTON
+             ADD INPUT BOX TO INIT nBOIDS
+Model -> GENERATE RANDOM POS & VEL AND INIT BOIDS
+Boid -> UPDATE & CALC SEPARATION, ALIGNMENT, COEHSION
