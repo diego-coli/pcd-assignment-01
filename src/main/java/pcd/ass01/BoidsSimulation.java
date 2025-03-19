@@ -1,7 +1,7 @@
 package pcd.ass01;
 
-import pcd.ass01.model.BoidsModel;
-import pcd.ass01.sequential.BoidsSimulator;
+import pcd.ass01.model.BoidModel;
+import pcd.ass01.concurrent.thread.BoidsSimulator;
 import pcd.ass01.view.BoidsView; // Ensure this is the correct package for BoidsView
 
 public class BoidsSimulation {
@@ -23,14 +23,14 @@ public class BoidsSimulation {
 	
 
     public static void main(String[] args) {      
-    	var model = new BoidsModel(
+    	var model = new BoidModel(
     					N_BOIDS, 
     					SEPARATION_WEIGHT, ALIGNMENT_WEIGHT, COHESION_WEIGHT, 
     					ENVIRONMENT_WIDTH, ENVIRONMENT_HEIGHT,
     					MAX_SPEED,
     					PERCEPTION_RADIUS,
     					AVOID_RADIUS); 
-    	var sim = new BoidsSimulator(model);
+    	var sim = new BoidsSimulator(model, 2);
     	var view = new BoidsView(model, SCREEN_WIDTH, SCREEN_HEIGHT);
     	sim.attachView(view);
     	sim.runSimulation();

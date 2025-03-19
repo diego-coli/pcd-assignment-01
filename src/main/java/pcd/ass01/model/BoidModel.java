@@ -7,8 +7,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class ProvModel {
-    private final List<ProvBoid> boids;
+public class BoidModel {
+    private final List<Boid> boids;
     private double separationWeight;
     private double alignmentWeight;
     private double cohesionWeight;
@@ -18,10 +18,10 @@ public class ProvModel {
     private final double perceptionRadius;
     private final double avoidRadius;
     private final Lock lock;
-    private final Condition updated;
+    private final Condition isUpdated;
 
-    public ProvModel(int nboids, double initialSeparationWeight, double initialAlignmentWeight, double initialCohesionWeight,
-                      double width, double height, double maxSpeed, double perceptionRadius, double avoidRadius) {
+    public BoidModel(int nboids, double initialSeparationWeight, double initialAlignmentWeight, double initialCohesionWeight,
+                     double width, double height, double maxSpeed, double perceptionRadius, double avoidRadius) {
         separationWeight = initialSeparationWeight;
         alignmentWeight = initialAlignmentWeight;
         cohesionWeight = initialCohesionWeight;
@@ -35,13 +35,13 @@ public class ProvModel {
         for (int i = 0; i < nboids; i++) {
             P2d pos = new P2d(-width / 2 + Math.random() * width, -height / 2 + Math.random() * height);
             V2d vel = new V2d(Math.random() * maxSpeed / 2 - maxSpeed / 4, Math.random() * maxSpeed / 2 - maxSpeed / 4);
-            boids.add(new ProvBoid(pos, vel));
+            boids.add(new Boid(pos, vel));
         }
         lock = new ReentrantLock();
-        updated = lock.newCondition();
+        isUpdated = lock.newCondition();
     }
 
-    public List<ProvBoid> getBoids() {
+    public List<Boid> getBoids() {
         lock.lock();
         try {
             return new ArrayList<>(boids);
@@ -50,22 +50,30 @@ public class ProvModel {
         }
     }
 
-    public void updateBoid(int index, ProvBoid newBoid) {
+    public int getBoidIndex(Boid boid) {
+        lock.lock();
+        try {
+            return boids.indexOf(boid);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void updateBoid(int index, Boid newBoid) {
         lock.lock();
         try {
             boids.set(index, newBoid);
-            //barriera
-            updated.signalAll();
+            isUpdated.signalAll();
         } finally {
             lock.unlock();
         }
     }
 
     public void waitForUpdate() throws InterruptedException {
-        lock.lock();
+        lock.lock();            //DA USARE NEL SIMULATOR
         try {
-            updated.await();
-        } finally {
+            isUpdated.await();      //attende che TUTTI i thread siano aggiornati
+        } finally {            // perchè isUpdated è la condition del monitorn(globale)
             lock.unlock();
         }
     }

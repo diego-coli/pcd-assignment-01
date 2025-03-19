@@ -3,17 +3,17 @@ package pcd.ass01.view;
 import javax.swing.*;
 
 import pcd.ass01.model.Boid;
-import pcd.ass01.model.BoidsModel;
+import pcd.ass01.model.BoidModel;
 
 import java.awt.*;
 
 public class BoidsPanel extends JPanel {
 
 	private BoidsView view; 
-	private BoidsModel model;
+	private BoidModel model;
     private int framerate;
 
-    public BoidsPanel(BoidsView view, BoidsModel model) {
+    public BoidsPanel(BoidsView view, BoidModel model) {
     	this.model = model;
     	this.view = view;
     }

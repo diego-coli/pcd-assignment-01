@@ -4,7 +4,7 @@ import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import pcd.ass01.model.BoidsModel;
+import pcd.ass01.model.BoidModel;
 
 import java.awt.*;
 import java.util.Hashtable;
@@ -14,10 +14,10 @@ public class BoidsView implements ChangeListener {
 	private JFrame frame;
 	private BoidsPanel boidsPanel;
 	private JSlider cohesionSlider, separationSlider, alignmentSlider;
-	private BoidsModel model;
+	private BoidModel model;
 	private int width, height;
 	
-	public BoidsView(BoidsModel model, int width, int height) {
+	public BoidsView(BoidModel model, int width, int height) {
 		this.model = model;
 		this.width = width;
 		this.height = height;
