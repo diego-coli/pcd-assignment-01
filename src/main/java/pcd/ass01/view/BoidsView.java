@@ -18,6 +18,7 @@ public class BoidsView implements ChangeListener {
 	private BoidModel model;
 	private int width, height;
 	private BoidsSimulator simulator;
+	private JTextField boidsCountField;
 	
 	public BoidsView(BoidModel model, BoidsSimulator simulator,int width, int height) {
 		this.model = model;
@@ -46,7 +47,15 @@ public class BoidsView implements ChangeListener {
 			 pauseButton.setText(simulator.isPaused() ? "Resume" : "Pause");
 		 });
 		 controlPanel.add(pauseButton);
-		 cp.add(controlPanel, BorderLayout.NORTH);
+
+        // Aggiungiamo il campo di testo per il numero totale di boids
+        JLabel boidsCountLabel = new JLabel("Total boids:");
+        boidsCountField = new JTextField(String.valueOf(model.getBoids().size()), 5);
+        boidsCountField.setEditable(false);
+        controlPanel.add(boidsCountLabel);
+        controlPanel.add(boidsCountField);
+
+		cp.add(controlPanel, BorderLayout.NORTH);
  
         
 
