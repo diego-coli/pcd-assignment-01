@@ -19,7 +19,7 @@ public class BoidModel {
     private final double avoidRadius;
     private final Lock lock;
     private final Condition isUpdated;
-    private boolean updated= false;
+    
 
     public BoidModel(int nboids, double initialSeparationWeight, double initialAlignmentWeight, double initialCohesionWeight,
                      double width, double height, double maxSpeed, double perceptionRadius, double avoidRadius) {
@@ -64,7 +64,6 @@ public class BoidModel {
         lock.lock();
         try {
             boids.set(index, newBoid);
-            updated = true;
             isUpdated.signalAll();
         } finally {
             lock.unlock();

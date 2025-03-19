@@ -4,6 +4,7 @@ import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
+import pcd.ass01.concurrent.thread.BoidsSimulator;
 import pcd.ass01.model.BoidModel;
 
 import java.awt.*;
@@ -16,22 +17,38 @@ public class BoidsView implements ChangeListener {
 	private JSlider cohesionSlider, separationSlider, alignmentSlider;
 	private BoidModel model;
 	private int width, height;
+	private BoidsSimulator simulator;
 	
-	public BoidsView(BoidModel model, int width, int height) {
+	public BoidsView(BoidModel model, BoidsSimulator simulator,int width, int height) {
 		this.model = model;
 		this.width = width;
+		this.simulator = simulator;
 		this.height = height;
 		
 		frame = new JFrame("Boids Simulation");
         frame.setSize(width, height);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
+		//pannello principale con BorderLayout
 		JPanel cp = new JPanel();
 		LayoutManager layout = new BorderLayout();
 		cp.setLayout(layout);
 
+		//pannello per la simulazione dei boids
         boidsPanel = new BoidsPanel(this, model);
 		cp.add(BorderLayout.CENTER, boidsPanel);
+
+		 // Pannello di controllo in alto: bottone per mettere in pausa/riprendere
+		 JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+		 JButton pauseButton = new JButton("Pause");
+		 pauseButton.addActionListener(e -> {
+			 simulator.togglePause();
+			 pauseButton.setText(simulator.isPaused() ? "Resume" : "Pause");
+		 });
+		 controlPanel.add(pauseButton);
+		 cp.add(controlPanel, BorderLayout.NORTH);
+ 
+        
 
         JPanel slidersPanel = new JPanel();
         
@@ -39,6 +56,8 @@ public class BoidsView implements ChangeListener {
         separationSlider = makeSlider();
         alignmentSlider = makeSlider();
         
+		
+
         slidersPanel.add(new JLabel("Separation"));
         slidersPanel.add(separationSlider);
         slidersPanel.add(new JLabel("Alignment"));

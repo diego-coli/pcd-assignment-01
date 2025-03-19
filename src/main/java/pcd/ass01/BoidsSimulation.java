@@ -32,7 +32,7 @@ public class BoidsSimulation {
     					AVOID_RADIUS); 
 		int numCores = Runtime.getRuntime().availableProcessors();
     	var sim = new BoidsSimulator(model, numCores);
-    	var view = new BoidsView(model, SCREEN_WIDTH, SCREEN_HEIGHT);
+    	var view = new BoidsView(model, sim,SCREEN_WIDTH, SCREEN_HEIGHT);
     	sim.attachView(view);
     	sim.runSimulation();
     }

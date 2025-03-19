@@ -17,6 +17,8 @@ public class BoidsSimulator {
     private int framerate;
     private final List<BoidWorker> workers;
 
+    private static volatile boolean paused = false;
+
     public BoidsSimulator(BoidModel model, int numWorkers) {
         this.model = model;
         this.view = Optional.empty();
@@ -32,9 +34,21 @@ public class BoidsSimulator {
             int start = i * batchSize;
             int end = (i == numWorkers - 1) ? boids.size() : start + batchSize;
             List<Boid> assignedBoids = boids.subList(start, end);
-            BoidWorker worker = new BoidWorker(model, assignedBoids, barrier);
+            BoidWorker worker = new BoidWorker(model, assignedBoids, barrier, this);
             workers.add(worker);
         }
+    }
+
+    public  boolean isPaused() {
+        return paused;
+    }
+
+    public  void setPaused(boolean paused) {
+        BoidsSimulator.paused = paused;
+    }
+
+    public void togglePause() {
+        paused = !paused;
     }
 
     public void attachView(BoidsView view) {
@@ -48,6 +62,16 @@ public class BoidsSimulator {
         }
 
         while (true) {
+
+            if(paused){
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                continue;
+            }
+            
             // Rendering
             if (view.isPresent()) {
                 var t0 = System.currentTimeMillis();
