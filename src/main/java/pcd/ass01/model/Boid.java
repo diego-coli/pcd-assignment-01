@@ -1,66 +1,46 @@
 package pcd.ass01.model;
 
 import pcd.ass01.common.*;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.List;
 import java.util.ArrayList;
-
 
 public class Boid {
     private P2d pos;
     private V2d vel;
-    private final Lock lock;
 
     public Boid(P2d pos, V2d vel) {
         this.pos = pos;
         this.vel = vel;
-        this.lock = new ReentrantLock();
     }
 
     public P2d getPos() {
-        lock.lock();
-        try {
-            return pos;
-        } finally {
-            lock.unlock();
-        }
+        return pos;
     }
 
     public V2d getVel() {
-        lock.lock();
-        try {
-            return vel;
-        } finally {
-            lock.unlock();
-        }
+        return vel;
     }
 
     public void updateState(BoidModel model) {
-        lock.lock();
-        try {
-            List<Boid> nearbyBoids = getNearbyBoids(model);
-            V2d separation = calculateSeparation(nearbyBoids, model);
-            V2d alignment = calculateAlignment(nearbyBoids, model);
-            V2d cohesion = calculateCohesion(nearbyBoids, model);
+        List<Boid> nearbyBoids = getNearbyBoids(model);
+        V2d separation = calculateSeparation(nearbyBoids, model);
+        V2d alignment = calculateAlignment(nearbyBoids, model);
+        V2d cohesion = calculateCohesion(nearbyBoids, model);
 
-            vel = vel.sum(alignment.mul(model.getAlignmentWeight()))
-                    .sum(separation.mul(model.getSeparationWeight()))
-                    .sum(cohesion.mul(model.getCohesionWeight()));
+        vel = vel.sum(alignment.mul(model.getAlignmentWeight()))
+                .sum(separation.mul(model.getSeparationWeight()))
+                .sum(cohesion.mul(model.getCohesionWeight()));
 
-            double speed = vel.abs();
-            if (speed > model.getMaxSpeed()) {
-                vel = vel.getNormalized().mul(model.getMaxSpeed());
-            }
-            pos = pos.sum(vel);
-
-            if (pos.x() < model.getMinX()) pos = pos.sum(new V2d(model.getWidth(), 0));
-            if (pos.x() >= model.getMaxX()) pos = pos.sum(new V2d(-model.getWidth(), 0));
-            if (pos.y() < model.getMinY()) pos = pos.sum(new V2d(0, model.getHeight()));
-            if (pos.y() >= model.getMaxY()) pos = pos.sum(new V2d(0, -model.getHeight()));
-        } finally {
-            lock.unlock();
+        double speed = vel.abs();
+        if (speed > model.getMaxSpeed()) {
+            vel = vel.getNormalized().mul(model.getMaxSpeed());
         }
+        pos = pos.sum(vel);
+
+        if (pos.x() < model.getMinX()) pos = pos.sum(new V2d(model.getWidth(), 0));
+        if (pos.x() >= model.getMaxX()) pos = pos.sum(new V2d(-model.getWidth(), 0));
+        if (pos.y() < model.getMinY()) pos = pos.sum(new V2d(0, model.getHeight()));
+        if (pos.y() >= model.getMaxY()) pos = pos.sum(new V2d(0, -model.getHeight()));
     }
 
     private List<Boid> getNearbyBoids(BoidModel model) {

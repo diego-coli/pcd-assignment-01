@@ -1,6 +1,7 @@
 package pcd.ass01.concurrent.thread;
 
 import java.util.Optional;
+import java.util.concurrent.CyclicBarrier;
 
 import pcd.ass01.model.*;
 import pcd.ass01.view.BoidsView;
@@ -11,6 +12,7 @@ import java.util.List;
 public class BoidsSimulator {
     private final BoidModel model;
     private Optional<BoidsView> view;
+    private final CyclicBarrier barrier;
     private static final int FRAMERATE = 25;
     private int framerate;
     private final List<BoidWorker> workers;
@@ -20,6 +22,9 @@ public class BoidsSimulator {
         this.view = Optional.empty();
         this.workers = new ArrayList<>();
 
+        //Inizializza la barriera
+        barrier = new CyclicBarrier (numWorkers);
+
         // Suddividere i boids tra i worker
         List<Boid> boids = model.getBoids();
         int batchSize = boids.size() / numWorkers;
@@ -27,7 +32,7 @@ public class BoidsSimulator {
             int start = i * batchSize;
             int end = (i == numWorkers - 1) ? boids.size() : start + batchSize;
             List<Boid> assignedBoids = boids.subList(start, end);
-            BoidWorker worker = new BoidWorker(model, assignedBoids);
+            BoidWorker worker = new BoidWorker(model, assignedBoids, barrier);
             workers.add(worker);
         }
     }

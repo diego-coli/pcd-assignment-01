@@ -19,6 +19,7 @@ public class BoidModel {
     private final double avoidRadius;
     private final Lock lock;
     private final Condition isUpdated;
+    private boolean updated= false;
 
     public BoidModel(int nboids, double initialSeparationWeight, double initialAlignmentWeight, double initialCohesionWeight,
                      double width, double height, double maxSpeed, double perceptionRadius, double avoidRadius) {
@@ -63,20 +64,13 @@ public class BoidModel {
         lock.lock();
         try {
             boids.set(index, newBoid);
+            updated = true;
             isUpdated.signalAll();
         } finally {
             lock.unlock();
         }
     }
 
-    public void waitForUpdate() throws InterruptedException {
-        lock.lock();            //DA USARE NEL SIMULATOR
-        try {
-            isUpdated.await();      //attende che TUTTI i thread siano aggiornati
-        } finally {            // perchè isUpdated è la condition del monitorn(globale)
-            lock.unlock();
-        }
-    }
 
     public double getMinX() { return -width / 2; }
     public double getMaxX() { return width / 2; }
