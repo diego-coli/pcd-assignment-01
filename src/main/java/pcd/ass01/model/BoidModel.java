@@ -20,7 +20,6 @@ public class BoidModel {
     private final Lock lock;
     private final Condition isUpdated;
     
-
     public BoidModel(int nboids, double initialSeparationWeight, double initialAlignmentWeight, double initialCohesionWeight,
                      double width, double height, double maxSpeed, double perceptionRadius, double avoidRadius) {
         separationWeight = initialSeparationWeight;
@@ -31,7 +30,7 @@ public class BoidModel {
         this.maxSpeed = maxSpeed;
         this.perceptionRadius = perceptionRadius;
         this.avoidRadius = avoidRadius;
-
+        
         boids = new ArrayList<>();
         for (int i = 0; i < nboids; i++) {
             P2d pos = new P2d(-width / 2 + Math.random() * width, -height / 2 + Math.random() * height);
@@ -64,12 +63,23 @@ public class BoidModel {
         lock.lock();
         try {
             boids.set(index, newBoid);
+            // Notifica tutti i thread in attesa che lo stato è cambiato.
             isUpdated.signalAll();
         } finally {
             lock.unlock();
         }
     }
 
+    // Metodo che fa attendere un thread finché non viene notificato un aggiornamento.
+    public void waitForUpdate() throws InterruptedException {
+        lock.lock();
+        try {
+            // Il thread si blocca finché non viene segnalato (ad es. dopo una updateBoid)
+            isUpdated.await();
+        } finally {
+            lock.unlock();
+        }
+    }
 
     public double getMinX() { return -width / 2; }
     public double getMaxX() { return width / 2; }
@@ -81,11 +91,58 @@ public class BoidModel {
     public double getAvoidRadius() { return avoidRadius; }
     public double getPerceptionRadius() { return perceptionRadius; }
 
-    public void setSeparationWeight(double value) { lock.lock(); try { separationWeight = value; } finally { lock.unlock(); } }
-    public void setAlignmentWeight(double value) { lock.lock(); try { alignmentWeight = value; } finally { lock.unlock(); } }
-    public void setCohesionWeight(double value) { lock.lock(); try { cohesionWeight = value; } finally { lock.unlock(); } }
-    public double getSeparationWeight() { lock.lock(); try { return separationWeight; } finally { lock.unlock(); } }
-    public double getCohesionWeight() { lock.lock(); try { return cohesionWeight; } finally { lock.unlock(); } }
-    public double getAlignmentWeight() { lock.lock(); try { return alignmentWeight; } finally { lock.unlock(); } }
+    public void setSeparationWeight(double value) {
+        lock.lock();
+        try {
+            separationWeight = value;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void setAlignmentWeight(double value) {
+        lock.lock();
+        try {
+            alignmentWeight = value;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void setCohesionWeight(double value) {
+        lock.lock();
+        try {
+            cohesionWeight = value;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public double getSeparationWeight() {
+        lock.lock();
+        try {
+            return separationWeight;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public double getCohesionWeight() {
+        lock.lock();
+        try {
+            return cohesionWeight;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public double getAlignmentWeight() {
+        lock.lock();
+        try {
+            return alignmentWeight;
+        } finally {
+            lock.unlock();
+        }
+    }
 }
 

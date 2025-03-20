@@ -71,6 +71,12 @@ public class BoidsSimulator {
                 }
                 continue;
             }
+
+            try {
+                model.waitForUpdate();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             
             // Rendering
             if (view.isPresent()) {

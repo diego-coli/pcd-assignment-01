@@ -9,3 +9,30 @@ View -> ADD START/STOP BUTTON
              ADD INPUT BOX TO INIT nBOIDS
 Model -> GENERATE RANDOM POS & VEL AND INIT BOIDS
 Boid -> UPDATE & CALC SEPARATION, ALIGNMENT, COEHSION
+
+
+In una versione precedentemente implementata, 
+si poteva usare il ReentrantLock insieme alla Condition senza sfruttare il vero meccanismo di blocco (await) ma solo controllando lo stato e facendo sleep brevi (busy waiting).
+ In pratica, questo approccio funzionava così:
+
+Ogni thread che voleva attendere un cambiamento nel modello acquisiva il lock e controllava una variabile booleana o uno stato (ad esempio, “è aggiornato?”).
+Se la condizione non era verificata, il thread non si bloccava realmente (cioè non veniva messo in attesa dal meccanismo di sincronizzazione), 
+ma eseguiva un ciclo che metteva in pausa brevemente il thread (Thread.sleep(…) in un loop) o continuava a ciclare (polling).
+Questo approccio richiedeva cicli frequenti per verificare la condizione e generalmente usava un “busy waiting” che consumava CPU,
+ perché i thread erano attivi nel controllare continuamente la condizione e dormendo solo per brevi periodi.
+
+ Inoltre, senza una barriera (o con una sincronizzazione meno efficiente) i thread dovevano fare continui controlli manuali su un flag di pausa, comportando anche qui un consumo maggiore di risorse.
+
+Miglioramento con condition.await():
+
+Utilizzando la Condition insieme a await(), il thread si blocca in maniera efficiente 
+(ossia il lock viene rilasciato e il thread viene messo in stato di attesa dal sistema operativo) 
+fino a quando non viene invocato signal() o signalAll() sull’oggetto Condition. In questo modo:
+
+I thread non effettuano polling attivi (cioè non controllano continuamente la condizione e non fanno sleep brevi in un loop).
+Il thread bloccato non consuma cicli CPU, poiché il sistema operativo lo sospende fino all’arrivo del segnale.
+Il risveglio avviene solo quando un altro thread, che ha completato un aggiornamento (ad esempio, in updateBoid() che chiama signalAll()), notifica il cambiamento.
+Quindi, usando condition.await() nel thread che attende (tipicamente nel thread di coordinamento o rendering) si ottiene un uso migliore delle risorse e un abbassamento del carico CPU complessivo, 
+perché i thread non rimangono attivi in attesa di verificare continuamente se il modello è aggiornato,
+ ma vengono bloccati in maniera efficiente fino a quando non è il momento di riprendere. 
+ Questo si traduce in un'applicazione con prestazioni migliori e una minore latenza dovuta al continuo polling.
