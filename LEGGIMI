@@ -36,3 +36,140 @@ Quindi, usando condition.await() nel thread che attende (tipicamente nel thread 
 perché i thread non rimangono attivi in attesa di verificare continuamente se il modello è aggiornato,
  ma vengono bloccati in maniera efficiente fino a quando non è il momento di riprendere. 
  Questo si traduce in un'applicazione con prestazioni migliori e una minore latenza dovuta al continuo polling.
+
+
+
+ //SCENARIO DI LOCK CONDITION BARRIER
+
+ Di seguito puoi trovare un esempio dettagliato di come interagiscono lock, condition e barrier nel contesto di tre thread (immaginiamo tre worker) per aggiornare il modello e sincronizzarsi:
+
+### Scenario
+
+- **Lock e Condition (isUpdated):**  
+  Il lock protegge l'accesso alla lista dei boid e gli aggiornamenti dei parametri 
+  (separation, alignment, cohesion). 
+  La condition permette a un thread (ad esempio, un thread di rendering o di coordinamento)
+   di attendere in modo efficiente fino a quando uno dei worker non notifichi un aggiornamento. 
+   In pratica, ogni volta che un worker chiama `updateBoid()`, 
+   acquista il lock, aggiorna il boid nella lista e chiama `isUpdated.signalAll()` per svegliare i thread in attesa 
+   (ad esempio, il thread di rendering).
+
+- **CyclicBarrier:**  
+  La barrier viene utilizzata per sincronizzare i tre worker: 
+  ciascun worker esegue il proprio aggiornamento di una serie di boid, poi chiama `barrier.await()`. 
+  Il meccanismo della barriera assicura che nessun worker proceda al ciclo successivo finché tutti e tre non hanno completato il loro aggiornamento. 
+  Questo garantisce che al termine di ogni ciclo di aggiornamento lo stato globale del modello sia consistente.
+
+### Esempio con 3 Thread
+
+Immaginiamo di avere 3 worker (Thread A, B e C):
+
+1. **Inizio del ciclo di aggiornamento:**
+   - I 3 thread entrano nel ciclo `while(true)`.
+   - Se la simulazione non è in pausa, ognuno inizia a aggiornare i propri boid.
+   
+2. **Utilizzo del Lock e della Condition durante l'aggiornamento:**
+   - Supponiamo che il Thread A debba aggiornare un boid:
+     - Il metodo `updateBoid(int index, Boid newBoid)` viene chiamato.
+     - All'interno di questo metodo, A acquisisce il lock:  
+       ```java
+       lock.lock();
+       try {
+           boids.set(index, newBoid);
+           // Notifica che è stato effettuato un aggiornamento nel modello.
+           isUpdated.signalAll();
+       } finally {
+           lock.unlock();
+       }
+       ```
+     - In questo modo, se il thread di coordinamento (ad esempio, il rendering) era in attesa chiamando `model.waitForUpdate()`, sarà risvegliato.
+   
+3. **Sincronizzazione con la Barrier:**
+   - Dopo che il Thread A (e in modo analogo B e C) ha aggiornato i propri boid, ciascuno chiama:
+     ```java
+     barrier.await();
+     ```
+   - La barrier attende finché tutti e tre i thread non arrivano a questo punto. Solo quando il terzo thread chiama `await()` tutti i 3 vengono liberati e possono iniziare il ciclo successivo.
+   
+4. **Thread di coordinamento (es. Rendering):**
+   - Separatamente, possiamo avere un thread (o il thread principale) che esegue:
+     ```java
+     while (true) {
+         try {
+             model.waitForUpdate(); // Si blocca finché non arriva una notifica di aggiornamento
+             // Procede col rendering: disegna lo stato attuale del modello
+             view.update(frameRate);
+         } catch (InterruptedException e) {
+             Thread.currentThread().interrupt();
+         }
+     }
+     ```
+   - Questo thread chiama `waitForUpdate()` che, internamente, esegue:
+     ```java
+     lock.lock();
+     try {
+         isUpdated.await(); // Il thread si blocca qui finché uno dei worker non esegue isUpdated.signalAll()
+     } finally {
+         lock.unlock();
+     }
+     ```
+   - Quando uno dei worker chiama `updateBoid()` dopo aver aggiornato un boid, viene segnalato e il thread di rendering si risveglia per eseguire il disegno.
+
+### Schema riassuntivo (pseudocodice)
+
+```java
+// Worker Threads (A, B e C)
+public void run() {
+    while (true) {
+        // Controllo pausa, ecc.
+        while (simulator.isPaused()) {
+            Thread.sleep(50);
+        }
+        
+        // Aggiornamento dei boid assegnati
+        for (Boid boid : assignedBoids) {
+            int index = model.getBoidIndex(boid);
+            boid.updateState(model);
+            model.updateBoid(index, boid);  // Qui viene acquisito il lock, aggiornato e viene chiamato isUpdated.signalAll()
+        }
+        
+        // Sincronizzazione: aspetta che tutti abbiano finito
+        barrier.await();
+        Thread.sleep(5);
+    }
+}
+
+// Thread di Rendering/Coordinamento
+new Thread(() -> {
+    while (true) {
+        try {
+            model.waitForUpdate(); // Attende una notifica (bloccandosi) finché un worker non chiama signalAll()
+            view.update(frameRate); // Rendering del modello aggiornato
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+}).start();
+```
+
+### Perché le prestazioni migliorano con condition.await()
+
+- **Senza condition.await():**  
+  Se usi solamente un polling (es. controllare continuamente una variabile oppure usare sleep brevi), i thread rimangono attivi controllando continuamente lo stato, consumando cicli CPU anche se non c'è stato alcun cambiamento nel modello.
+
+- **Con condition.await():**  
+  Il thread che chiama `await()` viene messo in attesa dal sistema operativo, liberando la CPU. Non consuma risorse perché, fino a quando non viene segnalato, è bloccato in maniera efficiente.  
+  Inoltre, quando i worker aggiornano il modello, chiamando `signalAll()` svegliano immediatamente il thread di rendering, che può procedere senza ritardi dovuti a ulteriori polling.
+
+Questo approccio riduce l'uso della CPU perché:
+- I thread in attesa **non eseguono cicli di polling** attivi.
+- Il risveglio avviene solo quando c'è veramente un aggiornamento nel modello.
+
+### Riassunto
+
+Con l'uso combinato di:
+- **Lock** per la mutua esclusione durante l'accesso e la modifica dello stato.
+- **Condition (await/signalAll)** per bloccare efficientemente un thread in attesa degli aggiornamenti.
+- **CyclicBarrier** per far sincronizzare i 3 worker e garantire che nessun thread proceda al ciclo successivo finché tutti non hanno completato gli aggiornamenti.
+
+si ottiene un sistema in cui ogni componente fa solo il suo lavoro e i thread che devono attendere non consumano inutilmente risorse CPU, portando a prestazioni complessivamente migliori e a una gestione più robusta della concorrenza.
