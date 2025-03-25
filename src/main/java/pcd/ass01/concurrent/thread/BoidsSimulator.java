@@ -16,7 +16,6 @@ public class BoidsSimulator {
     private static final int FRAMERATE = 25;
     private int framerate;
     private final List<BoidWorker> workers;
-
     private static volatile boolean paused = false;
 
     public BoidsSimulator(BoidModel model, int numWorkers) {
@@ -30,6 +29,10 @@ public class BoidsSimulator {
         // Suddividere i boids tra i worker
         List<Boid> boids = model.getBoids();
         int batchSize = boids.size() / numWorkers;
+        assignBoidsToWorkers(model, numWorkers, batchSize, boids);
+    }
+
+    private void assignBoidsToWorkers(BoidModel model, int numWorkers, int batchSize, List<Boid> boids) {
         for (int i = 0; i < numWorkers; i++) {
             int start = i * batchSize;
             int end = (i == numWorkers - 1) ? boids.size() : start + batchSize;
@@ -41,10 +44,6 @@ public class BoidsSimulator {
 
     public  boolean isPaused() {
         return paused;
-    }
-
-    public  void setPaused(boolean paused) {
-        BoidsSimulator.paused = paused;
     }
 
     public void togglePause() {

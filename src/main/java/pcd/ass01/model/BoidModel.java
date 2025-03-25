@@ -19,7 +19,7 @@ public class BoidModel {
     private final double avoidRadius;
     private final Lock lock;
     private final Condition isUpdated;
-    
+
     public BoidModel(int nboids, double initialSeparationWeight, double initialAlignmentWeight, double initialCohesionWeight,
                      double width, double height, double maxSpeed, double perceptionRadius, double avoidRadius) {
         separationWeight = initialSeparationWeight;
@@ -30,15 +30,18 @@ public class BoidModel {
         this.maxSpeed = maxSpeed;
         this.perceptionRadius = perceptionRadius;
         this.avoidRadius = avoidRadius;
-        
         boids = new ArrayList<>();
+        generateBoids(boids, nboids, width, height, maxSpeed);
+        lock = new ReentrantLock();
+        isUpdated = lock.newCondition();
+    }
+
+    private void generateBoids(List<Boid> boids, int nboids, double width, double height, double maxSpeed) {
         for (int i = 0; i < nboids; i++) {
             P2d pos = new P2d(-width / 2 + Math.random() * width, -height / 2 + Math.random() * height);
             V2d vel = new V2d(Math.random() * maxSpeed / 2 - maxSpeed / 4, Math.random() * maxSpeed / 2 - maxSpeed / 4);
             boids.add(new Boid(pos, vel));
         }
-        lock = new ReentrantLock();
-        isUpdated = lock.newCondition();
     }
 
     public List<Boid> getBoids() {
