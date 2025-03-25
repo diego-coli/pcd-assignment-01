@@ -172,4 +172,51 @@ Con l'uso combinato di:
 - **Condition (await/signalAll)** per bloccare efficientemente un thread in attesa degli aggiornamenti.
 - **CyclicBarrier** per far sincronizzare i 3 worker e garantire che nessun thread proceda al ciclo successivo finché tutti non hanno completato gli aggiornamenti.
 
-si ottiene un sistema in cui ogni componente fa solo il suo lavoro e i thread che devono attendere non consumano inutilmente risorse CPU, portando a prestazioni complessivamente migliori e a una gestione più robusta della concorrenza.
+si ottiene un sistema in cui ogni componente fa solo il suo lavoro e i thread che devono attendere non consumano inutilmente risorse CPU, 
+portando a prestazioni complessivamente migliori e a una gestione più robusta della concorrenza.
+
+
+
+
+
+/TASK/BASED
+
+
+1. Inizializzazione
+Costruttore di BoidsSimulator
+Riceve un'istanza di BoidModel (contenente la lista dei boid e i metodi sincronizzati per l'aggiornamento).
+Inizializza la variabile view come Optional vuoto.
+Crea un list di Future (per tenere traccia dei task sottomessi).
+Crea un pool di thread fisso tramite Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()) 
+per sfruttare il parallelismo in base ai core disponibili.
+
+2. Loop Principale (runSimulation)
+Il metodo runSimulation() è il cuore della simulazione e gestisce il ciclo infinito:
+
+Controllo della Pausa
+
+All'inizio del ciclo viene controllato il flag paused.
+Se la simulazione è in pausa, il thread dorme per 100 ms e continua il ciclo senza eseguire aggiornamenti.
+Fase di Aggiornamento dei Boid
+
+Viene invocato model.getBoids() per ottenere una copia della lista dei boid in modo thread-safe.
+Si calcola il numero di processori disponibili e il batchSize (numero di boid per task) con:
+Viene divisa la lista dei boid in sotto-liste (batch) per ogni processore.
+Per ogni batch, viene sottomesso all'Executor un task (ottenuto tramite una lambda) che:
+Per ogni boid nel batch:
+Chiama boid.updateState(model) per aggiornare lo stato del boid (ad esempio, posizioni e velocità) in base al modello.
+Usa model.getBoidIndex(boid) per ottenere la posizione corrente del boid nella lista.
+Aggiorna il boid nel modello con model.updateBoid(index, boid), il quale gestisce la sincronizzazione (attraverso lock/condition) e invia un segnale se previsto.
+Ogni task sottomesso restituisce un Future, che viene memorizzato in una lista per la sincronizzazione.
+
+Attesa del Completamento dei Task
+
+Dopo aver sottomesso tutti i task, il ciclo attende il completamento di ogni task chiamando future.get() per ogni Future presente nella lista.
+Questo garantisce che tutti gli aggiornamenti siano completati prima di procedere al rendering.
+Fase di Rendering
+
+Una volta completati gli aggiornamenti, viene controllato se esiste una vista attaccata (Optional contiene un valore).
+Viene misurato il tempo impiegato per aggiornare la vista tramite view.get().update(framerate).
+Calcola il tempo residuo da dormire in modo da mantenere un frame rate costante (ad es. 30 fps):
+Se il tempo impiegato è inferiore al periodo atteso (1000 ms / FRAMERATE), il thread dorme per la differenza.
+Il valore del frame rate viene aggiornato in base al tempo di rendering.

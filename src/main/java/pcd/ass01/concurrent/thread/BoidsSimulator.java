@@ -8,8 +8,9 @@ import pcd.ass01.view.BoidsView;
 
 import java.util.ArrayList;
 import java.util.List;
+import pcd.ass01.concurrent.Simulator;;
 
-public class BoidsSimulator {
+public class BoidsSimulator implements Simulator {
     private final BoidModel model;
     private Optional<BoidsView> view;
     private final CyclicBarrier barrier;
@@ -42,16 +43,19 @@ public class BoidsSimulator {
         }
     }
 
+    @Override
     public  boolean isPaused() {
         return paused;
     }
-
+    @Override
     public void togglePause() {
         paused = !paused;
     }
-
-    public void attachView(BoidsView view) {
-        this.view = Optional.of(view);
+    @Override
+    public void attachView(Object view) {
+        if (view instanceof BoidsView) {
+            this.view = Optional.of((BoidsView)view);
+        }
     }
 
     public void runSimulation() {

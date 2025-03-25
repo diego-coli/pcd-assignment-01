@@ -9,6 +9,7 @@ import pcd.ass01.model.BoidModel;
 
 import java.awt.*;
 import java.util.Hashtable;
+import pcd.ass01.concurrent.Simulator;;
 
 public class BoidsView implements ChangeListener {
 
@@ -17,10 +18,10 @@ public class BoidsView implements ChangeListener {
 	private JSlider cohesionSlider, separationSlider, alignmentSlider;
 	private BoidModel model;
 	private int width, height;
-	private BoidsSimulator simulator;
+	private Simulator simulator;
 	private JTextField boidsCountField;
 	
-	public BoidsView(BoidModel model, BoidsSimulator simulator,int width, int height) {
+	public BoidsView(BoidModel model, Simulator simulator,int width, int height) {
 		this.model = model;
 		this.width = width;
 		this.simulator = simulator;
