@@ -49,6 +49,35 @@ public class BoidsView implements ChangeListener {
 		 });
 		 controlPanel.add(pauseButton);
 
+
+		 // Bottone Reset
+		 JButton resetButton = new JButton("Reset");
+		 resetButton.addActionListener(e -> {
+			// Ferma la simulazione corrente
+			simulator.stop();
+			
+			// Chiedi all'utente di inserire un nuovo numero di boids
+			String input = JOptionPane.showInputDialog("Inserisci il numero di boids:");
+			int nBoids = model.getBoids().size(); // valore predefinito: usa il numero attuale
+			try {
+				nBoids = Integer.parseInt(input);
+			} catch(NumberFormatException ex) {
+				// Se l'input non è valido, continua con il valore predefinito
+				System.out.println("Numero non valido, utilizzo il valore attuale " + nBoids);
+			}
+			
+			// Reinizializza il modello con il nuovo numero di boid
+			// Nota: Dovresti aggiungere un metodo resetWithNewBoids in BoidModel
+			model.resetWithNewBoids(nBoids);
+			
+			// Avvia la nuova simulazione
+			simulator.start();
+			
+			// Aggiorna il campo che mostra il numero di boid
+			boidsCountField.setText(String.valueOf(model.getBoids().size()));
+		});
+		 controlPanel.add(resetButton);
+
         // Aggiungiamo il campo di testo per il numero totale di boids
         JLabel boidsCountLabel = new JLabel("Total boids:");
         boidsCountField = new JTextField(String.valueOf(model.getBoids().size()), 5);

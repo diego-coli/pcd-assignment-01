@@ -147,5 +147,25 @@ public class BoidModel {
             lock.unlock();
         }
     }
+
+    /**
+     * Resetta il modello con un nuovo numero di boid.
+     * Questo metodo elimina tutti i boid esistenti e ne crea di nuovi.
+     */
+    public void resetWithNewBoids(int nboids) {
+        lock.lock();
+        try {
+            // Pulisci la lista esistente
+            boids.clear();
+            
+            // Ricrea i boid con il metodo esistente
+            generateBoids(boids, nboids, width, height, maxSpeed);
+            
+            // Notifica tutti i thread in attesa che lo stato è cambiato
+            isUpdated.signalAll();
+        } finally {
+            lock.unlock();
+        }
+    }
 }
 

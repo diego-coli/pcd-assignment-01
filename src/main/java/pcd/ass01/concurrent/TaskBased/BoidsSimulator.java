@@ -49,6 +49,19 @@ public class BoidsSimulator implements Simulator {
     public void setPaused(boolean paused) {
         BoidsSimulator.paused = paused;
     }
+
+    @Override
+    public void stop() {
+        paused = true;
+        executor.shutdownNow();
+    }
+
+    @Override
+    public void start() {
+        paused = false;
+        executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        runSimulation();
+    }
     
     @Override
     public void runSimulation() {
@@ -106,13 +119,7 @@ public class BoidsSimulator implements Simulator {
                 }
             }
             
-            // Rimosso questa chiamata che potrebbe causare deadlock con il task-based approach
-            // try {
-            //     model.waitForUpdate();
-            // } catch (InterruptedException e) {
-            //     Thread.currentThread().interrupt();
-            // }
-            
+           
             // Dopo che il task è completato, procedi direttamente con il rendering
             if (view.isPresent()) {
                 long t0 = System.currentTimeMillis();

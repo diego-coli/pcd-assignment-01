@@ -220,3 +220,61 @@ Viene misurato il tempo impiegato per aggiornare la vista tramite view.get().upd
 Calcola il tempo residuo da dormire in modo da mantenere un frame rate costante (ad es. 30 fps):
 Se il tempo impiegato è inferiore al periodo atteso (1000 ms / FRAMERATE), il thread dorme per la differenza.
 Il valore del frame rate viene aggiornato in base al tempo di rendering.
+
+
+
+
+
+Riepilogo: Implementazione del Reset nella Simulazione Boids
+Abbiamo implementato un sistema completo di reset della simulazione di boids usando un approccio multi-thread. Ecco i dettagli tecnici e il flusso di esecuzione:
+
+Componenti principali modificati
+Bottone Reset nella UI: Aggiunto nella classe BoidsView con la logica necessaria per fermare la simulazione, chiedere il nuovo numero di boids, resettare il modello e riavviare la simulazione.
+
+Gestione dei Worker Thread: Modificata la creazione e la gestione dei thread worker in BoidsSimulator per garantire un avvio e un arresto puliti.
+
+Reset del Modello: Implementato il metodo resetWithNewBoids() in BoidModel per reinizializzare i boid con un nuovo numero specificato.
+
+Flusso di esecuzione
+Prima esecuzione
+Il metodo main() in BoidsSimulation chiede il numero di boid all'utente
+Crea il BoidModel con i parametri iniziali
+Crea il BoidsSimulator con il modello
+Crea la BoidsView e la associa al simulatore
+Chiama sim.start() che:
+Crea una nuova CyclicBarrier
+Crea i worker thread e assegna loro sottoinsiemi di boids
+Avvia tutti i worker
+Avvia il thread principale di simulazione
+Reset (quando si preme il bottone)
+Chiama simulator.stop() che:
+
+Imposta running = false per interrompere il ciclo principale
+Interrompe il thread principale di simulazione
+Resetta la barriera (importante per evitare BrokenBarrierException)
+Interrompe tutti i worker thread
+Attende che i worker terminino e svuota la lista
+Richiede all'utente il nuovo numero di boid
+
+Esegue model.resetWithNewBoids(nBoids) che:
+
+Pulisce la lista esistente di boid
+Ricrea i boid con il nuovo numero richiesto
+Mantiene i parametri comportamentali (separazione, allineamento, coesione)
+Notifica eventuali thread in attesa
+Chiama simulator.start() per riavviare la simulazione:
+
+Crea una nuova barriera
+Crea nuovi worker
+Avvia tutti i worker
+Avvia un nuovo thread di simulazione principale
+Problemi risolti
+Doppia inizializzazione della barriera: Abbiamo rimosso la creazione della barriera dal costruttore, lasciandola solo nel metodo start().
+
+Riferimenti non validi ai boid: Abbiamo modificato assignBoidsToWorkers() per creare copie della lista dei boid invece di usare viste sulla lista originale.
+
+Gestione delle eccezioni: Abbiamo aggiunto controlli per gestire correttamente le eccezioni BrokenBarrierException durante lo stop.
+
+Coerenza tra primo avvio e reset: Abbiamo assicurato che il comportamento dei boid sia coerente tra prima esecuzione e reset successivi.
+
+Questa implementazione permette un reset pulito della simulazione, con la possibilità di cambiare il numero di boid, mantenendo l'integrità della simulazione e garantendo un'esperienza utente fluida.

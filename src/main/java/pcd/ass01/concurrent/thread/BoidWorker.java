@@ -22,27 +22,40 @@ public class BoidWorker extends Thread {
     }
 
     public void run() {
-        while (true) {
-            // Se la simulazione è in pausa, attendi senza aggiornare i boid.
-            while (simulator.isPaused()) {
+        try {
+            while (!Thread.currentThread().isInterrupted()) {
+                // Se la simulazione è in pausa, attendi senza aggiornare i boid.
+                while (simulator.isPaused()) {
+                    try {
+                        Thread.sleep(50);
+                    } catch (InterruptedException e) {
+                        // Il thread è stato interrotto mentre era in pausa
+                        Thread.currentThread().interrupt();
+                        return; // Esci dal metodo run() terminando il thread
+                    }
+                }
+
+                for (Boid boid : assignedBoids) {
+                    int index = model.getBoidIndex(boid); 
+                    boid.updateState(model); 
+                    model.updateBoid(index, boid); 
+                }
+                
                 try {
-                    Thread.sleep(50);
+                    barrier.await(); // Attendi che tutti i thread abbiano finito di aggiornare i boid
+                    Thread.sleep(5); // Piccolo ritardo per efficienza 
                 } catch (InterruptedException e) {
+                    // Il thread è stato interrotto mentre era in attesa o durante lo sleep
                     Thread.currentThread().interrupt();
+                    return; // Esci dal metodo run() terminando il thread
+                } catch (BrokenBarrierException e) {
+                    // La barriera è stata rotta, il reset è stato attivato
+                    return; // Esci dal metodo run() terminando il thread senza generare errori
                 }
             }
-
-            for (Boid boid : assignedBoids) {
-                int index = model.getBoidIndex(boid); // Ottieni l'indice del boid
-                boid.updateState(model); // Aggiorna lo stato del boid
-                model.updateBoid(index, boid); // Segnala che il boid è stato aggiornato
-            }
-            try {
-                barrier.await(); // Attendi che tutti i thread abbiano finito di aggiornare i boid
-                //Thread.sleep(5); // Piccolo ritardo per efficenza 
-            } catch (InterruptedException | BrokenBarrierException e) {
-                e.printStackTrace();
-            }
+        } catch (Exception e) {
+            // Cattura qualsiasi altra eccezione per sicurezza
+            System.err.println("Errore nel worker thread: " + e.getMessage());
         }
     }
 }
