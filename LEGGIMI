@@ -306,3 +306,55 @@ Liberare le risorse dell'executor service
 Ricreare un nuovo executor quando necessario
 Gestire correttamente le eccezioni e prevenire i riferimenti a boid non più esistenti
 L'implementazione è ora più robusta e supporta operazioni di reset senza crash o memory leak.
+
+
+Riepilogo dell'Implementazione con Virtual Threads
+Concetto di Base
+L'approccio Virtual Thread implementa un modello "un thread per ogni boid", sfruttando i nuovi thread leggeri di Java 21+ che consentono di creare migliaia di thread con overhead minimo. Questa architettura offre la massima parallelizzazione possibile, con un thread dedicato ad ogni singola entità.
+
+Componenti Principali
+BoidsSimulator: Controller principale che implementa l'interfaccia Simulator
+VirtualBoid: Classe Runnable che gestisce l'aggiornamento di un singolo boid
+ExecutorService: Utilizza Executors.newVirtualThreadPerTaskExecutor() per creare virtual thread
+CyclicBarrier: Meccanismo di sincronizzazione tra tutti i thread
+Sincronizzazione
+Il cuore della sincronizzazione è la CyclicBarrier, un meccanismo che:
+
+Viene inizializzato con N+1 parti (N boid + thread principale)
+Fa attendere ogni thread finché tutti raggiungono un punto specifico del codice
+Quando tutti i thread hanno chiamato barrier.await(), tutti vengono rilasciati simultaneamente
+Garantisce che l'aggiornamento dei boid e il rendering avvengano in fasi sincronizzate
+
+
+Flusso di Esecuzione Dettagliato
+1. Inizializzazione
+VirtualSimulation.main() → crea BoidModel → crea BoidsSimulator → crea BoidsView → sim.start()
+2. Avvio (BoidsSimulator.start())
+Crea una barriera ciclica con dimensione (numBoid + 1)
+Crea un executor per virtual thread
+Per ogni boid:
+Crea un virtual thread che esegue un'istanza di VirtualBoid
+Sottomette il thread all'executor
+Avvia il thread principale di simulazione
+
+3. Ciclo di ogni Virtual Thread (VirtualBoid.run())
+    aggiorna stato del boid
+mentre (non interrotto) {
+    se (simulazione in pausa) attendi
+    aggiorna stato del boid
+    aggiorna il boid nel modello
+    attendi alla barriera (sincronizzazione)
+}
+
+4. Ciclo del Thread Principale (runSimulation())
+mentre (running) {
+    se (pausa) attendi e continua
+    attendi alla barriera (sincronizzazione con tutti i virtual thread)
+    esegui rendering
+    controlla framerate
+}
+5. Reset o Stop
+Imposta running = false
+Resetta la barriera per evitare deadlock
+Chiude l'executor
+Interrompe tutti i thread
