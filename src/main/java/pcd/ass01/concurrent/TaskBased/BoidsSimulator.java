@@ -10,6 +10,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class BoidsSimulator implements Simulator {
     private final BoidModel model;
@@ -18,16 +19,18 @@ public class BoidsSimulator implements Simulator {
     private static final int FRAMERATE = 30;
     private int framerate;
     // Task-based approach
-    private static ExecutorService executor;
+    private ExecutorService executor;  // Rimuovi static per evitare problemi con più istanze
     private List<Future<?>> futures;
     
-    private static volatile boolean paused = false;
+    private volatile boolean paused = false;  // Rimuovi static
+    private volatile boolean running = false; // Aggiungi per controllare il loop
+    private Thread simulationThread;          // Aggiungi per tenere traccia del thread principale
     
     public BoidsSimulator(BoidModel model) {
         this.model = model;
         this.view = Optional.empty();
         futures = new ArrayList<>();
-        executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        // Non creare l'executor qui, lo faremo in start()
     }
     
     @Override
@@ -46,30 +49,66 @@ public class BoidsSimulator implements Simulator {
             this.view = Optional.of((BoidsView)view);
         }
     }
-    public void setPaused(boolean paused) {
-        BoidsSimulator.paused = paused;
-    }
-
+    
     @Override
     public void stop() {
+        // Prima imposta running a false per far terminare il loop
+        running = false;
         paused = true;
-        executor.shutdownNow();
+        
+        // Interrompi il thread principale
+        if (simulationThread != null) {
+            simulationThread.interrupt();
+        }
+        
+        // Shutdown dell'executor
+        if (executor != null && !executor.isShutdown()) {
+            executor.shutdownNow();
+            try {
+                // Aspetta fino a 3 secondi per la terminazione
+                executor.awaitTermination(3, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        
+        // Cancella le future
+        futures.clear();
     }
 
     @Override
     public void start() {
+        // Se già in esecuzione, non fare nulla
+        if (running) {
+            return;
+        }
+        
+        // Imposta lo stato
         paused = false;
+        running = true;
+        
+        // Crea un nuovo executor
         executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-        runSimulation();
+        futures = new ArrayList<>();
+        
+        // Avvia il thread di simulazione
+        simulationThread = new Thread(this::runSimulation);
+        simulationThread.start();
+    }
+
+    public boolean isRunning() {
+        return running;
     }
     
     @Override
     public void runSimulation() {
-        while (true) {
+        // Cambiato da while(true) a while(running) per permettere la terminazione
+        while (running) {
             if (paused) {
                 try {
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
+                    if (!running) return; // Esci se non più in esecuzione
                     Thread.currentThread().interrupt();
                 }
                 continue;
@@ -79,30 +118,25 @@ public class BoidsSimulator implements Simulator {
             futures.clear();
             List<Boid> boids = model.getBoids();
             int numProcessors = Runtime.getRuntime().availableProcessors();
-            // Suddivisione dei boids in batch , Max serve per evitare divisione per 0
             int batchSize = Math.max(1, boids.size() / numProcessors);
 
-            // Creazione di un task per ogni batch. il for serve per creare i task e assegnarli ai thread e non per eseguire il task e aspettare il risultato e poi passare al prossimo.
-            for (int i = 0; i < numProcessors; i++) {
-                // Calcolo dell'indice di inizio e fine del batch
+            // Creazione e sottomissione dei task
+            for (int i = 0; i < numProcessors && running; i++) {
                 int start = i * batchSize;
-                // Se è l'ultimo batch, la fine è la fine della lista , se no è la somma dell'indice di inizio e la dimensione del batch, evitando di andare oltre la fine della lista
                 int end = (i == numProcessors - 1) ? boids.size() : start + batchSize;
                 
-                // Creazione di un task per il batch
                 if (start < boids.size()) {
+                    // Crea una copia della sottolista per evitare problemi di concorrenza
+                    final List<Boid> boidBatch = new ArrayList<>(boids.subList(start, end));
                     
-                    List<Boid> boidBatch = boids.subList(start, end);
-
-                    // Aggiunta del task alla lista dei task
                     futures.add(executor.submit(() -> {
-                        // Esecuzione del task
                         for (Boid boid : boidBatch) {
-                            // Aggiornamento dello stato del boid
+                            if (!running) return; // Esci se non più in esecuzione
                             boid.updateState(model);
-                            // Aggiornamento del modello con il boid aggiornato
                             int index = model.getBoidIndex(boid);
-                            model.updateBoid(index, boid);
+                            if (index >= 0) {
+                                model.updateBoid(index, boid);
+                            }
                         }
                     }));
                 }
@@ -110,18 +144,16 @@ public class BoidsSimulator implements Simulator {
 
             // Attesa di tutti i task
             for (Future<?> future : futures) {
-                // Attesa del completamento del task
                 try {
-                    // Il metodo get() è bloccante, attende il completamento del task e restituisce il risultato
+                    if (!running) break; // Esci se non più in esecuzione
                     future.get();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    if (!running) break; // Ignora le eccezioni se stiamo terminando
                 }
             }
             
-           
-            // Dopo che il task è completato, procedi direttamente con il rendering
-            if (view.isPresent()) {
+            // Rendering
+            if (running && view.isPresent()) {
                 long t0 = System.currentTimeMillis();
                 view.get().update(framerate);
                 long t1 = System.currentTimeMillis();
@@ -131,6 +163,7 @@ public class BoidsSimulator implements Simulator {
                     try {
                         Thread.sleep(framratePeriod - dtElapsed);
                     } catch (InterruptedException e) {
+                        if (!running) return; // Esci se non più in esecuzione
                         Thread.currentThread().interrupt();
                     }
                     framerate = FRAMERATE;

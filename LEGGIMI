@@ -278,3 +278,31 @@ Gestione delle eccezioni: Abbiamo aggiunto controlli per gestire correttamente l
 Coerenza tra primo avvio e reset: Abbiamo assicurato che il comportamento dei boid sia coerente tra prima esecuzione e reset successivi.
 
 Questa implementazione permette un reset pulito della simulazione, con la possibilità di cambiare il numero di boid, mantenendo l'integrità della simulazione e garantendo un'esperienza utente fluida.
+
+
+
+Ecco le principali modifiche che abbiamo implementato per supportare il reset nella versione task-based:
+
+BoidsSimulator (Task-based):
+
+Rimosso gli attributi static da executor e paused per evitare problemi con istanze multiple
+Aggiunto simulationThread per tenere traccia del thread principale di simulazione
+Implementato controllo running per gestire il ciclo di vita della simulazione
+Migliorato il metodo stop() per terminare correttamente l'executor service con timeout
+Creato un vero metodo start() che inizializza l'executor e avvia il thread di simulazione
+Aggiunto controlli di interruzione nel ciclo runSimulation()
+BoidTask:
+
+Modificato il costruttore per creare una copia indipendente della lista di boid assegnati
+Aggiunto controlli di simulator.isRunning() in punti strategici per terminare in caso di reset
+Implementato controllo dell'indice del boid per gestire eventuali boid rimossi durante il reset
+TaskBoidsSimulation:
+
+Aggiornato il main() per chiamare sim.start() invece di sim.runSimulation()
+Questi cambiamenti hanno permesso di rendere l'approccio task-based completamente compatibile con la funzionalità di reset già implementata nella view, consentendo di:
+
+Interrompere in modo pulito tutti i task in esecuzione
+Liberare le risorse dell'executor service
+Ricreare un nuovo executor quando necessario
+Gestire correttamente le eccezioni e prevenire i riferimenti a boid non più esistenti
+L'implementazione è ora più robusta e supporta operazioni di reset senza crash o memory leak.

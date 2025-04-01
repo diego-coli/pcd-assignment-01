@@ -42,6 +42,6 @@ public class TaskBoidsSimulation {
         var sim = new BoidsSimulator(model);
         var view = new BoidsView(model, sim, SCREEN_WIDTH, SCREEN_HEIGHT);
         sim.attachView(view);
-        sim.runSimulation();
+        sim.start();
     }
 }
