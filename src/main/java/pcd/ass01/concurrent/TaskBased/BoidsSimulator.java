@@ -7,10 +7,11 @@ import pcd.ass01.view.BoidsView;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.BrokenBarrierException;
 
 public class BoidsSimulator implements Simulator {
     private final BoidModel model;
@@ -18,19 +19,18 @@ public class BoidsSimulator implements Simulator {
     
     private static final int FRAMERATE = 30;
     private int framerate;
-    // Task-based approach
-    private ExecutorService executor;  // Rimuovi static per evitare problemi con più istanze
-    private List<Future<?>> futures;
     
-    private volatile boolean paused = false;  // Rimuovi static
-    private volatile boolean running = false; // Aggiungi per controllare il loop
-    private Thread simulationThread;          // Aggiungi per tenere traccia del thread principale
+    // Task-based approach
+    private ExecutorService executor;
+    private CyclicBarrier barrier;
+    
+    private volatile boolean paused = false;
+    private volatile boolean running = false;
+    private Thread simulationThread;
     
     public BoidsSimulator(BoidModel model) {
         this.model = model;
         this.view = Optional.empty();
-        futures = new ArrayList<>();
-        // Non creare l'executor qui, lo faremo in start()
     }
     
     @Override
@@ -54,11 +54,21 @@ public class BoidsSimulator implements Simulator {
     public void stop() {
         // Prima imposta running a false per far terminare il loop
         running = false;
-        paused = true;
+        paused = false;
+        
+        // Reset della barriera per evitare deadlock
+        if (barrier != null) {
+            barrier.reset();
+        }
         
         // Interrompi il thread principale
         if (simulationThread != null) {
             simulationThread.interrupt();
+            try {
+                simulationThread.join(500); // Attendi max 500ms
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
         
         // Shutdown dell'executor
@@ -71,9 +81,6 @@ public class BoidsSimulator implements Simulator {
                 Thread.currentThread().interrupt();
             }
         }
-        
-        // Cancella le future
-        futures.clear();
     }
 
     @Override
@@ -83,16 +90,32 @@ public class BoidsSimulator implements Simulator {
             return;
         }
         
-        // Imposta lo stato
-        paused = false;
         running = true;
+        paused = false;
         
-        // Crea un nuovo executor
-        executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-        futures = new ArrayList<>();
+        List<Boid> boids = model.getBoids();
+        int numProcessors = Runtime.getRuntime().availableProcessors();
+        int batchSize = Math.max(1, boids.size() / numProcessors);
         
-        // Avvia il thread di simulazione
-        simulationThread = new Thread(this::runSimulation);
+        // Crea l'executor
+        executor = Executors.newFixedThreadPool(numProcessors);
+        
+        // Crea una barriera con numProcessors + 1 (thread principale)
+        barrier = new CyclicBarrier(numProcessors + 1);
+        
+        // Crea i task persistenti una sola volta
+        for (int i = 0; i < numProcessors; i++) {
+            int start = i * batchSize;
+            int end = (i == numProcessors - 1) ? boids.size() : start + batchSize;
+            List<Boid> boidBatch = new ArrayList<>(boids.subList(start, end));
+            
+            // Crea un task per ogni batch di boids e lo sottomette all'executor
+            executor.submit(new BoidTask(model, boidBatch, this, barrier));
+        }
+        
+        // Avvia il thread principale
+        simulationThread = new Thread(() -> runSimulation(barrier));
+        simulationThread.setName("SimulationThread");
         simulationThread.start();
     }
 
@@ -102,74 +125,51 @@ public class BoidsSimulator implements Simulator {
     
     @Override
     public void runSimulation() {
-        // Cambiato da while(true) a while(running) per permettere la terminazione
+        // Se non abbiamo una barriera, non possiamo sincronizzare correttamente
+        // Questo è solo per compatibilità con l'interfaccia
+        if (barrier != null) {
+            runSimulation(barrier);
+        } else {
+            System.err.println("Warning: runSimulation() chiamato senza barriera!");
+        }
+    }
+
+    public void runSimulation(CyclicBarrier barrier) {
         while (running) {
             if (paused) {
                 try {
                     Thread.sleep(100);
+                    continue;
                 } catch (InterruptedException e) {
-                    if (!running) return; // Esci se non più in esecuzione
+                    if (!running) return;
                     Thread.currentThread().interrupt();
                 }
-                continue;
             }
             
-            // Update
-            futures.clear();
-            List<Boid> boids = model.getBoids();
-            int numProcessors = Runtime.getRuntime().availableProcessors();
-            int batchSize = Math.max(1, boids.size() / numProcessors);
-
-            // Creazione e sottomissione dei task
-            for (int i = 0; i < numProcessors && running; i++) {
-                int start = i * batchSize;
-                int end = (i == numProcessors - 1) ? boids.size() : start + batchSize;
+            try {
+                // Sincronizzazione con tutti i task worker
+                barrier.await();
                 
-                if (start < boids.size()) {
-                    // Crea una copia della sottolista per evitare problemi di concorrenza
-                    final List<Boid> boidBatch = new ArrayList<>(boids.subList(start, end));
+                // Rendering
+                if (view.isPresent()) {
+                    long t0 = System.currentTimeMillis();
+                    view.get().update(framerate);
+                    long t1 = System.currentTimeMillis();
+                    long dtElapsed = t1 - t0;
+                    long frameRatePeriod = 1000 / FRAMERATE;
                     
-                    futures.add(executor.submit(() -> {
-                        for (Boid boid : boidBatch) {
-                            if (!running) return; // Esci se non più in esecuzione
-                            boid.updateState(model);
-                            int index = model.getBoidIndex(boid);
-                            if (index >= 0) {
-                                model.updateBoid(index, boid);
-                            }
-                        }
-                    }));
-                }
-            }
-
-            // Attesa di tutti i task
-            for (Future<?> future : futures) {
-                try {
-                    if (!running) break; // Esci se non più in esecuzione
-                    future.get();
-                } catch (Exception e) {
-                    if (!running) break; // Ignora le eccezioni se stiamo terminando
-                }
-            }
-            
-            // Rendering
-            if (running && view.isPresent()) {
-                long t0 = System.currentTimeMillis();
-                view.get().update(framerate);
-                long t1 = System.currentTimeMillis();
-                long dtElapsed = t1 - t0;
-                long framratePeriod = 1000 / FRAMERATE;
-                if (dtElapsed < framratePeriod) {
-                    try {
-                        Thread.sleep(framratePeriod - dtElapsed);
-                    } catch (InterruptedException e) {
-                        if (!running) return; // Esci se non più in esecuzione
-                        Thread.currentThread().interrupt();
+                    if (dtElapsed < frameRatePeriod) {
+                        Thread.sleep(frameRatePeriod - dtElapsed);
+                        framerate = FRAMERATE;
+                    } else {
+                        framerate = (int) (1000 / dtElapsed);
                     }
-                    framerate = FRAMERATE;
-                } else {
-                    framerate = (int) (1000 / dtElapsed);
                 }
+            } catch (InterruptedException e) {
+                if (!running) return;
+                Thread.currentThread().interrupt();
+            } catch (BrokenBarrierException e) {
+                if (!running) return;
             }
         }
     }

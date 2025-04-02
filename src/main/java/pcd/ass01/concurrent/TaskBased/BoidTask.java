@@ -4,51 +4,61 @@ import pcd.ass01.model.Boid;
 import pcd.ass01.model.BoidModel;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
 
 public class BoidTask implements Runnable {
     private final BoidModel model;
     private final List<Boid> assignedBoids;
     private final BoidsSimulator simulator;
+    private final CyclicBarrier barrier; // Aggiungi barriera per sincronizzazione
 
-    public BoidTask(BoidModel model, List<Boid> assignedBoids, BoidsSimulator simulator) {
+    public BoidTask(BoidModel model, List<Boid> assignedBoids, BoidsSimulator simulator, CyclicBarrier barrier) {
         this.model = model;
-        // Crea una copia della lista di boid per evitare problemi di concorrenza
         this.assignedBoids = new ArrayList<>(assignedBoids);
         this.simulator = simulator;
+        this.barrier = barrier;
     }
 
     @Override
     public void run() {
-        // Verifica se la simulazione è ancora in esecuzione (non in fase di stop/reset)
-        if (!simulator.isRunning()) {
-            return; // Esci subito se la simulazione è stata fermata
-        }
-        
-        // Attende se la simulazione è in pausa
-        while (simulator.isPaused() && simulator.isRunning()) {
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return; // Esce in caso di interruzione
+        try {
+            // Ciclo persistente
+            while (!Thread.currentThread().isInterrupted() && simulator.isRunning()) {
+                // Gestione pausa
+                while (simulator.isPaused() && simulator.isRunning() && !Thread.currentThread().isInterrupted()) {
+                    Thread.sleep(50);
+                }
+                
+                if (!simulator.isRunning() || Thread.currentThread().isInterrupted()) {
+                    break;
+                }
+                
+                // Aggiorna tutti i boid assegnati
+                for (Boid boid : assignedBoids) {
+                    if (!simulator.isRunning()) {
+                        return;
+                    }
+                    
+                    boid.updateState(model);
+                    int index = model.getBoidIndex(boid);
+                    
+                    if (index >= 0) {
+                        model.updateBoid(index, boid);
+                    }
+                }
+                
+                // Sincronizzazione con gli altri task e il thread principale
+                barrier.await();
             }
-        }
-        
-        // Aggiorna tutti i boid assegnati
-        for (Boid boid : assignedBoids) {
-            // Verifica che la simulazione sia ancora attiva
-            if (!simulator.isRunning()) {
-                return;
+        } catch (InterruptedException e) {
+            // Thread interrotto, termina silenziosamente
+            Thread.currentThread().interrupt();
+        } catch (BrokenBarrierException e) {
+            // La barriera è stata resettata, probabilmente durante un reset
+            if (simulator.isRunning()) {
+                System.err.println("BrokenBarrierException in BoidTask: " + e.getMessage());
             }
-            
-            boid.updateState(model);
-            int index = model.getBoidIndex(boid);
-            
-            // Verifica che il boid esista ancora nel modello
-            if (index >= 0) {
-                model.updateBoid(index, boid);
-            }
-            // Se index è -1, il boid non esiste più nel modello (è stato rimosso durante il reset)
         }
     }
 }
