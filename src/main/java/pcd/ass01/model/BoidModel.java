@@ -74,6 +74,7 @@ public class BoidModel {
     }
 
     // Metodo che fa attendere un thread finché non viene notificato un aggiornamento.
+    // usato per la sincronizzazione tra i thread nell approccio thread based
     public void waitForUpdate() throws InterruptedException {
         lock.lock();
         try {

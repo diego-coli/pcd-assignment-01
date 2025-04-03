@@ -10,9 +10,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 public class BoidsSimulator implements Simulator {
     private final BoidModel model;
@@ -24,7 +21,6 @@ public class BoidsSimulator implements Simulator {
     private Thread simulationThread;
     private static final int FRAMERATE = 30;
     private int framerate;
-    private ExecutorService executor; // Aggiungi questo campo
 
     public BoidsSimulator(BoidModel model) {
         this.model = model;
@@ -62,11 +58,15 @@ public class BoidsSimulator implements Simulator {
             barrier.reset();
         }
         
-        // Chiudi l'executor
-        if (executor != null && !executor.isShutdown()) {
-            executor.shutdownNow();
+        // Interrompi tutti i virtual thread
+        for (Thread vt : virtualThreads) {
+            vt.interrupt();
+        }
+        
+        // Attendi che i thread terminino (opzionale)
+        for (Thread vt : virtualThreads) {
             try {
-                executor.awaitTermination(3, TimeUnit.SECONDS);
+                vt.join(100); // Attende max 100ms per thread
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -92,22 +92,25 @@ public class BoidsSimulator implements Simulator {
         // Crea una barriera con tanti parti quanti i boid + 1 (thread principale)
         barrier = new CyclicBarrier(boids.size() + 1);
         
-        // Crea un executor per virtual thread e mantenilo attivo
-        executor = Executors.newVirtualThreadPerTaskExecutor();
-        
         // Crea e avvia un virtual thread per ogni boid
         for (int i = 0; i < boids.size(); i++) {
             final int index = i;
-            executor.submit(() -> {
-                Thread.currentThread().setName("VirtualBoid-" + index);
-                new VirtualBoid(model, boids.get(index), barrier, this).run();
-            });
+            final Boid boid = boids.get(i);
+            
+            // Usa Thread.ofVirtual() invece dell'executor
+            Thread vThread = Thread.ofVirtual()
+                                  .name("VirtualBoid-" + index)
+                                  .start(() -> {
+                                      new VirtualBoid(model, boid, barrier, this).run();
+                                  });
+            
+            virtualThreads.add(vThread);
         }
         
         // Avvia il thread principale per il rendering
-        simulationThread = new Thread(this::runSimulation);
-        simulationThread.setName("SimulationThread");
-        simulationThread.start();
+        simulationThread = Thread.ofPlatform()
+                                .name("SimulationThread")
+                                .start(this::runSimulation);
     }
     
     public boolean isRunning() {
