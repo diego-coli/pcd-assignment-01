@@ -21,6 +21,7 @@ public class ThreadBoidsJPFTest {
     
     public static void main(String[] args) {
         testForDeadlocks();
+        //testForRaceConditions();  // Aggiungi un secondo test
     }
     
     public static void testForDeadlocks() {

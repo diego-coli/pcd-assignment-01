@@ -3,52 +3,85 @@ package pcd.ass01.model;
 import pcd.ass01.common.*;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class Boid {
-    private P2d pos;
-    private V2d vel;
+    // Usa AtomicReference per letture atomiche
+    private final AtomicReference<P2d> pos;
+    private final AtomicReference<V2d> vel;
+    private final Lock lock = new ReentrantLock();
 
     public Boid(P2d pos, V2d vel) {
-        this.pos = pos;
-        this.vel = vel;
+        this.pos = new AtomicReference<>(pos);
+        this.vel = new AtomicReference<>(vel);
     }
 
     public P2d getPos() {
-        return pos;
+        // Lettura atomica, thread-safe
+        P2d currentPos = pos.get();
+        // Copia difensiva per evitare modifiche esterne
+        return new P2d(currentPos.x(), currentPos.y());
     }
 
     public V2d getVel() {
-        return vel;
+        // Lettura atomica, thread-safe
+        V2d currentVel = vel.get();
+        // Copia difensiva per evitare modifiche esterne
+        return new V2d(currentVel.x(), currentVel.y());
     }
 
     public void updateState(BoidModel model) {
-        List<Boid> nearbyBoids = getNearbyBoids(model);
-        V2d separation = calculateSeparation(nearbyBoids, model);
-        V2d alignment = calculateAlignment(nearbyBoids, model);
-        V2d cohesion = calculateCohesion(nearbyBoids, model);
+        // Ottieni copie sicure per i calcoli
+        P2d currentPos = getPos();
+        V2d currentVel = getVel();
+        
+        // Calcoli fuori dal lock
+        List<Boid> nearbyBoids = getNearbyBoids(model, currentPos);
+        V2d separation = calculateSeparation(nearbyBoids, model, currentPos);
+        V2d alignment = calculateAlignment(nearbyBoids, model, currentVel);
+        V2d cohesion = calculateCohesion(nearbyBoids, model, currentPos);
+        
+        // Proteggiamo solo l'aggiornamento dello stato
+        lock.lock();
+        try {
+            // Aggiornamento della velocità
+            V2d newVel = currentVel.sum(alignment.mul(model.getAlignmentWeight()))
+                    .sum(separation.mul(model.getSeparationWeight()))
+                    .sum(cohesion.mul(model.getCohesionWeight()));
 
-        vel = vel.sum(alignment.mul(model.getAlignmentWeight()))
-                .sum(separation.mul(model.getSeparationWeight()))
-                .sum(cohesion.mul(model.getCohesionWeight()));
+            double speed = newVel.abs();
+            if (speed > model.getMaxSpeed()) {
+                newVel = newVel.getNormalized().mul(model.getMaxSpeed());
+            }
+            
+            // Aggiornamento atomico della velocità
+            vel.set(newVel);
+            
+            // Aggiornamento della posizione
+            P2d newPos = currentPos.sum(newVel);
 
-        double speed = vel.abs();
-        if (speed > model.getMaxSpeed()) {
-            vel = vel.getNormalized().mul(model.getMaxSpeed());
+            // Controllo dei bordi
+            if (newPos.x() < model.getMinX()) newPos = newPos.sum(new V2d(model.getWidth(), 0));
+            if (newPos.x() >= model.getMaxX()) newPos = newPos.sum(new V2d(-model.getWidth(), 0));
+            if (newPos.y() < model.getMinY()) newPos = newPos.sum(new V2d(0, model.getHeight()));
+            if (newPos.y() >= model.getMaxY()) newPos = newPos.sum(new V2d(0, -model.getHeight()));
+            
+            // Aggiornamento atomico della posizione
+            pos.set(newPos);
+        } finally {
+            lock.unlock();
         }
-        pos = pos.sum(vel);
-
-        if (pos.x() < model.getMinX()) pos = pos.sum(new V2d(model.getWidth(), 0));
-        if (pos.x() >= model.getMaxX()) pos = pos.sum(new V2d(-model.getWidth(), 0));
-        if (pos.y() < model.getMinY()) pos = pos.sum(new V2d(0, model.getHeight()));
-        if (pos.y() >= model.getMaxY()) pos = pos.sum(new V2d(0, -model.getHeight()));
     }
 
-    private List<Boid> getNearbyBoids(BoidModel model) {
+    private List<Boid> getNearbyBoids(BoidModel model, P2d myPos) {
         List<Boid> list = new ArrayList<>();
+        
         for (Boid other : model.getBoids()) {
             if (other != this) {
                 P2d otherPos = other.getPos();
-                double distance = pos.distance(otherPos);
+                double distance = myPos.distance(otherPos);
                 if (distance < model.getPerceptionRadius()) {
                     list.add(other);
                 }
@@ -57,7 +90,7 @@ public class Boid {
         return list;
     }
 
-    private V2d calculateAlignment(List<Boid> nearbyBoids, BoidModel model) {
+    private V2d calculateAlignment(List<Boid> nearbyBoids, BoidModel model, V2d currentVel) {
         double avgVx = 0, avgVy = 0;
         if (!nearbyBoids.isEmpty()) {
             for (Boid other : nearbyBoids) {
@@ -67,12 +100,12 @@ public class Boid {
             }
             avgVx /= nearbyBoids.size();
             avgVy /= nearbyBoids.size();
-            return new V2d(avgVx - vel.x(), avgVy - vel.y()).getNormalized();
+            return new V2d(avgVx - currentVel.x(), avgVy - currentVel.y()).getNormalized();
         }
         return new V2d(0, 0);
     }
 
-    private V2d calculateCohesion(List<Boid> nearbyBoids, BoidModel model) {
+    private V2d calculateCohesion(List<Boid> nearbyBoids, BoidModel model, P2d currentPos) {
         double centerX = 0, centerY = 0;
         if (!nearbyBoids.isEmpty()) {
             for (Boid other : nearbyBoids) {
@@ -82,20 +115,20 @@ public class Boid {
             }
             centerX /= nearbyBoids.size();
             centerY /= nearbyBoids.size();
-            return new V2d(centerX - pos.x(), centerY - pos.y()).getNormalized();
+            return new V2d(centerX - currentPos.x(), centerY - currentPos.y()).getNormalized();
         }
         return new V2d(0, 0);
     }
 
-    private V2d calculateSeparation(List<Boid> nearbyBoids, BoidModel model) {
+    private V2d calculateSeparation(List<Boid> nearbyBoids, BoidModel model, P2d currentPos) {
         double dx = 0, dy = 0;
         int count = 0;
         for (Boid other : nearbyBoids) {
             P2d otherPos = other.getPos();
-            double distance = pos.distance(otherPos);
+            double distance = currentPos.distance(otherPos);
             if (distance < model.getAvoidRadius()) {
-                dx += pos.x() - otherPos.x();
-                dy += pos.y() - otherPos.y();
+                dx += currentPos.x() - otherPos.x();
+                dy += currentPos.y() - otherPos.y();
                 count++;
             }
         }
