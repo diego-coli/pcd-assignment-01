@@ -2,19 +2,22 @@ package pcd.ass01;
 
 import pcd.ass01.model.Boid;
 import pcd.ass01.model.BoidModel;
+import pcd.ass01.concurrent.thread.BoidWorker;
+import pcd.ass01.concurrent.thread.BoidsSimulator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CyclicBarrier;
 
 /**
- * Test semplificato per JPF che evita classi problematiche
+ * Test per verificare la presenza di deadlock nell'approccio thread-based
  */
 public class ThreadBoidsJPFTest {
     
     // Versione ridotta per testing
-    private static final int NUM_BOIDS = 4;
+    private static final int NUM_BOIDS = 10;
     private static final int NUM_WORKERS = 2;
-    private static final int MAX_ITERATIONS = 2;
+    private static final int MAX_ITERATIONS = 3;
     
     public static void main(String[] args) {
         testForDeadlocks();
@@ -31,100 +34,79 @@ public class ThreadBoidsJPFTest {
             5.0
         );
         
+        // Crea una barriera
+        CyclicBarrier barrier = new CyclicBarrier(NUM_WORKERS + 1);
+        
+        // Prepara le liste di boid per i worker
         List<Boid> allBoids = model.getBoids();
-        List<SimpleWorker> workers = new ArrayList<>();
+        List<Thread> threads = new ArrayList<>();
         
-        // Oggetti per sincronizzazione semplice
-        Object[] locks = new Object[NUM_WORKERS + 1];
-        for (int i = 0; i <= NUM_WORKERS; i++) {
-            locks[i] = new Object();
-        }
+        // Crea un MockSimulator che estende BoidsSimulator
+        MockSimulator simulator = new MockSimulator(model);
         
-        // Crea i worker con sincronizzazione semplice
+        int batchSize = NUM_BOIDS / NUM_WORKERS;
+        
+        // Crea i worker thread
         for (int i = 0; i < NUM_WORKERS; i++) {
-            int start = i * (NUM_BOIDS / NUM_WORKERS);
-            int end = (i == NUM_WORKERS - 1) ? NUM_BOIDS : start + (NUM_BOIDS / NUM_WORKERS);
+            int start = i * batchSize;
+            int end = (i == NUM_WORKERS - 1) ? NUM_BOIDS : start + batchSize;
             
             List<Boid> workerBoids = new ArrayList<>(allBoids.subList(start, end));
-            SimpleWorker worker = new SimpleWorker(model, workerBoids, i, locks);
-            workers.add(worker);
-            worker.start();
+            
+            // BoidWorker estende Thread, quindi lo creiamo direttamente
+            BoidWorker worker = new BoidWorker(model, workerBoids, barrier, simulator);
+            threads.add(worker);
         }
         
-        // Thread principale
-        for (int iter = 0; iter < MAX_ITERATIONS; iter++) {
-            // Segnala ai worker di procedere
-            for (int i = 0; i < NUM_WORKERS; i++) {
-                synchronized(locks[i]) {
-                    locks[i].notify();
-                }
-            }
-            
-            // Attendi che tutti i worker finiscano
-            synchronized(locks[NUM_WORKERS]) {
-                try {
-                    locks[NUM_WORKERS].wait();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-            
-            System.out.println("Main thread completato step " + iter);
+        // Avvia i thread
+        for (Thread t : threads) {
+            t.start();
         }
         
-        // Termina i thread
-        for (SimpleWorker worker : workers) {
-            worker.terminate();
+        // Simula alcune iterazioni
+        for (int i = 0; i < MAX_ITERATIONS; i++) {
+            try {
+                // Sincronizzazione con tutti i worker
+                barrier.await();
+                System.out.println("Main thread completato step " + i);
+                Thread.sleep(5); // Piccolo ritardo come nel codice originale
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
+        
+        // Interrompi i thread
+        for (Thread t : threads) {
+            t.interrupt();
+        }
+        
+        // Attendi la terminazione
+        for (Thread t : threads) {
+            try {
+                t.join(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        System.out.println("Test completato senza deadlock");
     }
     
-    static class SimpleWorker extends Thread {
-        private final BoidModel model;
-        private final List<Boid> assignedBoids;
-        private final int id;
-        private final Object[] locks;
-        private boolean running = true;
+    // MockSimulator che estende BoidsSimulator per compatibilità
+    static class MockSimulator extends BoidsSimulator {
+        private volatile boolean forcedPause = false;
         
-        public SimpleWorker(BoidModel model, List<Boid> boids, int id, Object[] locks) {
-            this.model = model;
-            this.assignedBoids = boids;
-            this.id = id;
-            this.locks = locks;
-        }
-        
-        public void terminate() {
-            running = false;
-            interrupt();
+        public MockSimulator(BoidModel model) {
+            super(model,NUM_WORKERS);
         }
         
         @Override
-        public void run() {
-            while (running) {
-                try {
-                    // Attendi segnale per procedere
-                    synchronized(locks[id]) {
-                        locks[id].wait();
-                    }
-                    
-                    if (!running) break;
-                    
-                    // Aggiorna i boid
-                    for (Boid boid : assignedBoids) {
-                        boid.updateState(model);
-                        int index = model.getBoidIndex(boid);
-                        if (index >= 0) {
-                            model.updateBoid(index, boid);
-                        }
-                    }
-                    
-                    // Segnala completamento
-                    synchronized(locks[locks.length - 1]) {
-                        locks[locks.length - 1].notify();
-                    }
-                } catch (InterruptedException e) {
-                    if (!running) break;
-                }
-            }
+        public boolean isPaused() { 
+            return forcedPause;
+        }
+        
+        public void setForcedPause(boolean paused) {
+            this.forcedPause = paused;
         }
     }
 }
