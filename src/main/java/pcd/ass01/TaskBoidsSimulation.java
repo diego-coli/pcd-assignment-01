@@ -1,7 +1,7 @@
 package pcd.ass01;
 
 import pcd.ass01.model.BoidModel;
-import pcd.ass01.concurrent.TaskBased.BoidsSimulator;
+import pcd.ass01.concurrent.tasks.BoidsSimulator;
 import pcd.ass01.view.BoidsView;
 import javax.swing.JOptionPane;
 

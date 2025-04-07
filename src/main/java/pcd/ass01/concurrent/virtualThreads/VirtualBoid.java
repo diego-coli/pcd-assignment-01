@@ -1,4 +1,4 @@
-package pcd.ass01.concurrent.virtualThread;
+package pcd.ass01.concurrent.virtualThreads;
 
 import pcd.ass01.model.Boid;
 import pcd.ass01.model.BoidModel;

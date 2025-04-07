@@ -1,4 +1,4 @@
-package pcd.ass01.concurrent.TaskBased;
+package pcd.ass01.concurrent.tasks;
 
 import pcd.ass01.model.Boid;
 import pcd.ass01.model.BoidModel;

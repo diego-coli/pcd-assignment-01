@@ -1,7 +1,7 @@
 package pcd.ass01;
 
 import pcd.ass01.model.BoidModel;
-import pcd.ass01.concurrent.thread.BoidsSimulator;
+import pcd.ass01.concurrent.threads.BoidsSimulator;
 import pcd.ass01.view.BoidsView;
 import javax.swing.JOptionPane;
 
@@ -38,8 +38,7 @@ public class BoidsSimulation {
                         MAX_SPEED,
                         PERCEPTION_RADIUS,
                         AVOID_RADIUS); 
-        int numCores = Runtime.getRuntime().availableProcessors();
-        var sim = new BoidsSimulator(model, numCores);
+        var sim = new BoidsSimulator(model);
         var view = new BoidsView(model, sim, SCREEN_WIDTH, SCREEN_HEIGHT);
         sim.attachView(view);
         sim.start();

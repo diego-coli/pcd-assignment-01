@@ -1,4 +1,4 @@
-package pcd.ass01.concurrent.virtualThread;
+package pcd.ass01.concurrent.virtualThreads;
 
 import pcd.ass01.concurrent.Simulator;
 import pcd.ass01.model.Boid;
@@ -97,7 +97,6 @@ public class BoidsSimulator implements Simulator {
             final int index = i;
             final Boid boid = boids.get(i);
             
-            // Usa Thread.ofVirtual() invece dell'executor
             Thread vThread = Thread.ofVirtual()
                                   .name("VirtualBoid-" + index)
                                   .start(() -> {

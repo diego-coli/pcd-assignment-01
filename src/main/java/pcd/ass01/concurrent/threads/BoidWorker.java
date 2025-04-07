@@ -1,4 +1,4 @@
-package pcd.ass01.concurrent.thread;
+package pcd.ass01.concurrent.threads;
 
 import pcd.ass01.model.Boid;
 import pcd.ass01.model.BoidModel;

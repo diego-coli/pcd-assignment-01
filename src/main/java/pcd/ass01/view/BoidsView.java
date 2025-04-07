@@ -4,7 +4,6 @@ import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import pcd.ass01.concurrent.thread.BoidsSimulator;
 import pcd.ass01.model.BoidModel;
 
 import java.awt.*;

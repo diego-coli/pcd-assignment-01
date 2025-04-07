@@ -1,4 +1,4 @@
-package pcd.ass01.concurrent.thread;
+package pcd.ass01.concurrent.threads;
 
 import java.util.Optional;
 import java.util.concurrent.CyclicBarrier;
@@ -22,7 +22,7 @@ public class BoidsSimulator implements Simulator {
     private Thread simulationThread;
     private volatile boolean running = false;
 
-    public BoidsSimulator(BoidModel model, int numWorkers) {
+    public BoidsSimulator(BoidModel model) {
         this.model = model;
         this.view = Optional.empty();
         this.workers = new ArrayList<>();
@@ -113,6 +113,7 @@ public class BoidsSimulator implements Simulator {
         simulationThread.start();
     }
 
+    @Override
     public void runSimulation() {
         // Rimuovi l'avvio dei worker thread dato che ora è gestito da start()
         
