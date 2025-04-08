@@ -35,11 +35,17 @@ public class BoidWorker extends Thread {
                     }
                 }
 
+                long startTime = System.currentTimeMillis();
+
                 for (Boid boid : assignedBoids) {
                     int index = model.getBoidIndex(boid); 
                     boid.updateState(model); 
                     model.updateBoid(index, boid); 
                 }
+
+                long endTime = System.currentTimeMillis();
+                long duration = endTime - startTime;
+                System.out.println("Worker " + this.getName() + " update time: " + duration + " ms");
                 
                 try {
                     barrier.await(); // Attendi che tutti i thread abbiano finito di aggiornare i boid

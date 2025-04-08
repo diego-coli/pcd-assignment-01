@@ -39,13 +39,18 @@ public class BoidTask implements Runnable {
                     if (!simulator.isRunning()) {
                         return;
                     }
-                    
-                    boid.updateState(model);
+
+                    long t0 = System.currentTimeMillis();
+
                     int index = model.getBoidIndex(boid);
                     
                     if (index >= 0) {
                         model.updateBoid(index, boid);
                     }
+
+                    long t1 = System.currentTimeMillis();
+                    long durationMs = (t1 - t0);
+                    System.out.println("[TASK] Elapsed time: " + durationMs + " ms");
                 }
                 
                 // Sincronizzazione con gli altri task e il thread principale

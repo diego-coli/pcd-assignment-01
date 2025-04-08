@@ -33,11 +33,16 @@ public class VirtualBoid implements Runnable {
                 }
                 
                 // Aggiorna il boid
+                long t0 = System.currentTimeMillis();
                 boid.updateState(model);
                 int index = model.getBoidIndex(boid);
                 if (index >= 0) {
                     model.updateBoid(index, boid);
                 }
+
+                long t1 = System.currentTimeMillis();
+                long durationMs = (t1 - t0);
+                System.out.println("[VTHREAD " + Thread.currentThread().getName() + "] Update time: " + durationMs + " ms");
                 
                 try {
                     // Sincronizzazione con gli altri thread
