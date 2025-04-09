@@ -1,3 +1,11 @@
+/*
+    COMPONENTI DEL GRUPPO:
+    Arcese Gabriele
+    Colì Diego
+    Costantini Marco
+    Meco Daniel
+ */
+
 package pcd.ass01;
 
 import pcd.ass01.model.BoidModel;
