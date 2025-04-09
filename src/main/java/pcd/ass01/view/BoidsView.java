@@ -63,15 +63,24 @@ public class BoidsView implements ChangeListener {
 				System.out.println("Numero non valido, utilizzo il valore attuale " + nBoids);
 			}
 			
-			// Reinizializza il modello con il nuovo numero di boid
-			// Nota: Dovresti aggiungere un metodo resetWithNewBoids in BoidModel
-			model.resetWithNewBoids(nBoids);
-			
-			// Avvia la nuova simulazione
-			simulator.start();
-			
-			// Aggiorna il campo che mostra il numero di boid
-			boidsCountField.setText(String.valueOf(model.getBoids().size()));
+			 // Reset degli slider ai valori predefiniti (10 = 1.0)
+			 separationSlider.setValue(10);
+			 alignmentSlider.setValue(10);
+			 cohesionSlider.setValue(10);
+			 
+			 // Reinizializza il modello con il nuovo numero di boid e i parametri predefiniti
+			 model.resetWithNewBoids(nBoids);
+			 
+			 // Imposta esplicitamente i pesi nel modello ai valori predefiniti
+			 model.setSeparationWeight(1.0);
+			 model.setAlignmentWeight(1.0);
+			 model.setCohesionWeight(1.0);
+			 
+			 // Avvia la nuova simulazione
+			 simulator.start();
+			 
+			 // Aggiorna il campo che mostra il numero di boid
+			 boidsCountField.setText(String.valueOf(model.getBoids().size()));
 		});
 		 controlPanel.add(resetButton);
 
