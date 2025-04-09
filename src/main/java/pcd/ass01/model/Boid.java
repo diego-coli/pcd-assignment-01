@@ -33,41 +33,34 @@ public class Boid {
     }
 
     public void updateState(BoidModel model) {
-        // Ottieni copie sicure per i calcoli
+        // Ottiene copie sicure per i calcoli
         P2d currentPos = getPos();
         V2d currentVel = getVel();
-        
         // Calcoli fuori dal lock
         List<Boid> nearbyBoids = getNearbyBoids(model, currentPos);
         V2d separation = calculateSeparation(nearbyBoids, model, currentPos);
         V2d alignment = calculateAlignment(nearbyBoids, model, currentVel);
         V2d cohesion = calculateCohesion(nearbyBoids, model, currentPos);
-        
-        // Proteggiamo solo l'aggiornamento dello stato
+        // Protezione solo dell'aggiornamento dello stato
         lock.lock();
         try {
             // Aggiornamento della velocità
             V2d newVel = currentVel.sum(alignment.mul(model.getAlignmentWeight()))
                     .sum(separation.mul(model.getSeparationWeight()))
                     .sum(cohesion.mul(model.getCohesionWeight()));
-
             double speed = newVel.abs();
             if (speed > model.getMaxSpeed()) {
                 newVel = newVel.getNormalized().mul(model.getMaxSpeed());
             }
-            
             // Aggiornamento atomico della velocità
             vel.set(newVel);
-            
             // Aggiornamento della posizione
             P2d newPos = currentPos.sum(newVel);
-
             // Controllo dei bordi
             if (newPos.x() < model.getMinX()) newPos = newPos.sum(new V2d(model.getWidth(), 0));
             if (newPos.x() >= model.getMaxX()) newPos = newPos.sum(new V2d(-model.getWidth(), 0));
             if (newPos.y() < model.getMinY()) newPos = newPos.sum(new V2d(0, model.getHeight()));
             if (newPos.y() >= model.getMaxY()) newPos = newPos.sum(new V2d(0, -model.getHeight()));
-            
             // Aggiornamento atomico della posizione
             pos.set(newPos);
         } finally {
@@ -77,7 +70,6 @@ public class Boid {
 
     private List<Boid> getNearbyBoids(BoidModel model, P2d myPos) {
         List<Boid> list = new ArrayList<>();
-        
         for (Boid other : model.getBoids()) {
             if (other != this) {
                 P2d otherPos = other.getPos();

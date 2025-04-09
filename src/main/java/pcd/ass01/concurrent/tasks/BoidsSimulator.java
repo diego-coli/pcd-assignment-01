@@ -16,17 +16,13 @@ import java.util.concurrent.BrokenBarrierException;
 public class BoidsSimulator implements Simulator {
     private final BoidModel model;
     private Optional<BoidsView> view;
-    
-    private static final int FRAMERATE = 30;
-    private int framerate;
-    
-    // Task-based approach
     private ExecutorService executor;
     private CyclicBarrier barrier;
-    
     private volatile boolean paused = false;
     private volatile boolean running = false;
     private Thread simulationThread;
+    private static final int FRAMERATE = 30;
+    private int framerate;
     
     public BoidsSimulator(BoidModel model) {
         this.model = model;
@@ -52,7 +48,7 @@ public class BoidsSimulator implements Simulator {
     
     @Override
     public void stop() {
-        // Prima imposta running a false per far terminare il loop
+        // Setta variabili a false per far terminare il loop
         running = false;
         paused = false;
         
@@ -61,11 +57,12 @@ public class BoidsSimulator implements Simulator {
             barrier.reset();
         }
         
-        // Interrompi il thread principale
+        // Interrompe il master thread
         if (simulationThread != null) {
             simulationThread.interrupt();
             try {
-                simulationThread.join(500); // Attendi max 500ms
+                // Aspetta fino a 500ms per la terminazione
+                simulationThread.join(500);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -75,7 +72,7 @@ public class BoidsSimulator implements Simulator {
         if (executor != null && !executor.isShutdown()) {
             executor.shutdownNow();
             try {
-                // Aspetta fino a 3 secondi per la terminazione
+                // Aspetta fino a 3s per la terminazione
                 executor.awaitTermination(3, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -85,7 +82,7 @@ public class BoidsSimulator implements Simulator {
 
     @Override
     public void start() {
-        // Se già in esecuzione, non fare nulla
+        // Se già in esecuzione, non fa nulla
         if (running) {
             return;
         }
@@ -97,23 +94,19 @@ public class BoidsSimulator implements Simulator {
         int numProcessors = Runtime.getRuntime().availableProcessors();
         int batchSize = Math.max(1, boids.size() / numProcessors);
         
-        // Crea l'executor
+        // Crea l'executor e la barriera
         executor = Executors.newFixedThreadPool(numProcessors);
-        
-        // Crea una barriera con numProcessors + 1 (thread principale)
-        barrier = new CyclicBarrier(numProcessors + 1);
+        barrier = new CyclicBarrier(numProcessors + 1); // + 1 per il master thread
         
         // Crea i task persistenti una sola volta
         for (int i = 0; i < numProcessors; i++) {
             int start = i * batchSize;
             int end = (i == numProcessors - 1) ? boids.size() : start + batchSize;
             List<Boid> boidBatch = new ArrayList<>(boids.subList(start, end));
-            
-            // Crea un task per ogni batch di boids e lo sottomette all'executor
-            executor.submit(new BoidTask(model, boidBatch, this, barrier));
+            executor.submit(new BoidTask(model, boidBatch, this, barrier)); // Un task per ogni batch
         }
         
-        // Avvia il thread principale
+        // Avvia il master thread
         simulationThread = new Thread(() -> runSimulation(barrier));
         simulationThread.setName("SimulationThread");
         simulationThread.start();
@@ -122,11 +115,11 @@ public class BoidsSimulator implements Simulator {
     public boolean isRunning() {
         return running;
     }
-    
+
+    // Solo per compatibilità con interfaccia Simulator
     @Override
     public void runSimulation() {
-        // Se non abbiamo una barriera, non possiamo sincronizzare correttamente
-        // Questo è solo per compatibilità con l'interfaccia
+        // Se non si ha una barriera, non si può sincronizzare correttamente
         if (barrier != null) {
             runSimulation(barrier);
         } else {
@@ -147,7 +140,7 @@ public class BoidsSimulator implements Simulator {
             }
             
             try {
-                // Sincronizzazione con tutti i task worker
+                // Sincronizzazione con tutti i tasks
                 barrier.await();
                 
                 // Rendering

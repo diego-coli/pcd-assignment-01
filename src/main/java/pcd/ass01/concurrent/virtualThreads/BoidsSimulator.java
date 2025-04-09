@@ -47,66 +47,54 @@ public class BoidsSimulator implements Simulator {
     @Override
     public void stop() {
         running = false;
-        
-        // Interrompi il thread principale
+        // Interrompe il master thread
         if (simulationThread != null) {
             simulationThread.interrupt();
         }
-        
         // Reset della barriera per evitare deadlock
         if (barrier != null) {
             barrier.reset();
         }
-        
-        // Interrompi tutti i virtual thread
+        // Interrompe tutti i virtual threads
         for (Thread vt : virtualThreads) {
             vt.interrupt();
         }
-        
-        // Attendi che i thread terminino (opzionale)
+        // Attendi che i virtual threads terminino
         for (Thread vt : virtualThreads) {
             try {
-                vt.join(100); // Attende max 100ms per thread
+                // Attende max 100ms per thread
+                vt.join(100);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         }
-        
-        // Pulisci la lista di virtual thread
         virtualThreads.clear();
     }
     
     @Override
     public void start() {
-        // Se già in esecuzione, non fare nulla
+        // Se già in esecuzione, non fa nulla
         if (running) {
             return;
         }
-        
         running = true;
         paused = false;
-        
-        // Ottieni la lista completa di boid
+
         List<Boid> boids = model.getBoids();
-        
-        // Crea una barriera con tanti parti quanti i boid + 1 (thread principale)
-        barrier = new CyclicBarrier(boids.size() + 1);
-        
+        // Crea la barriera
+        barrier = new CyclicBarrier(boids.size() + 1);  // + 1 per il master thread
         // Crea e avvia un virtual thread per ogni boid
         for (int i = 0; i < boids.size(); i++) {
             final int index = i;
             final Boid boid = boids.get(i);
-            
             Thread vThread = Thread.ofVirtual()
                                   .name("VirtualBoid-" + index)
                                   .start(() -> {
                                       new VirtualBoid(model, boid, barrier, this).run();
                                   });
-            
             virtualThreads.add(vThread);
         }
-        
-        // Avvia il thread principale per il rendering
+        // Avvia il master thread per il rendering
         simulationThread = Thread.ofPlatform()
                                 .name("SimulationThread")
                                 .start(this::runSimulation);
@@ -128,11 +116,10 @@ public class BoidsSimulator implements Simulator {
                     Thread.currentThread().interrupt();
                 }
             }
-            
             try {
                 // Aspetta che tutti i boid completino l'aggiornamento
                 barrier.await();
-                
+
                 // Rendering
                 if (view.isPresent()) {
                     long t0 = System.currentTimeMillis();
@@ -140,7 +127,6 @@ public class BoidsSimulator implements Simulator {
                     long t1 = System.currentTimeMillis();
                     long dtElapsed = t1 - t0;
                     long frameRatePeriod = 1000 / FRAMERATE;
-                    
                     if (dtElapsed < frameRatePeriod) {
                         Thread.sleep(frameRatePeriod - dtElapsed);
                         framerate = FRAMERATE;

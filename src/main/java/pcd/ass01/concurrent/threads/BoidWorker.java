@@ -12,7 +12,7 @@ public class BoidWorker extends Thread {
     private final BoidModel model;
     private final List<Boid> assignedBoids;
     private final CyclicBarrier barrier;
-    private final BoidsSimulator simulator; // Passiamo l'istanza del simulatore
+    private final BoidsSimulator simulator;
 
     public BoidWorker(BoidModel model, List<Boid> assignedBoids, CyclicBarrier barrier, BoidsSimulator simulator) {
         this.model = model;
@@ -24,43 +24,36 @@ public class BoidWorker extends Thread {
     public void run() {
         try {
             while (!Thread.currentThread().isInterrupted()) {
-                // Se la simulazione è in pausa, attendi senza aggiornare i boid.
+                // Se la simulazione è in pausa, attende senza aggiornare i boids
                 while (simulator.isPaused()) {
                     try {
                         Thread.sleep(50);
                     } catch (InterruptedException e) {
-                        // Il thread è stato interrotto mentre era in pausa
                         Thread.currentThread().interrupt();
-                        return; // Esci dal metodo run() terminando il thread
+                        return;
                     }
                 }
-
                 long startTime = System.currentTimeMillis();
-
+                // Ora aggiorna i boids
                 for (Boid boid : assignedBoids) {
                     int index = model.getBoidIndex(boid); 
                     boid.updateState(model); 
                     model.updateBoid(index, boid); 
                 }
-
                 long endTime = System.currentTimeMillis();
                 long duration = endTime - startTime;
                 System.out.println("Worker " + this.getName() + " update time: " + duration + " ms");
-                
                 try {
-                    barrier.await(); // Attendi che tutti i thread abbiano finito di aggiornare i boid
-                    Thread.sleep(5); // Piccolo ritardo per efficienza 
+                    barrier.await(); // Attende che tutti i workers abbiano finito di aggiornare i boids
+                    Thread.sleep(5);
                 } catch (InterruptedException e) {
-                    // Il thread è stato interrotto mentre era in attesa o durante lo sleep
                     Thread.currentThread().interrupt();
-                    return; // Esci dal metodo run() terminando il thread
+                    return;
                 } catch (BrokenBarrierException e) {
-                    // La barriera è stata rotta, il reset è stato attivato
-                    return; // Esci dal metodo run() terminando il thread senza generare errori
+                    return;
                 }
             }
         } catch (Exception e) {
-            // Cattura qualsiasi altra eccezione per sicurezza
             System.err.println("Errore nel worker thread: " + e.getMessage());
         }
     }

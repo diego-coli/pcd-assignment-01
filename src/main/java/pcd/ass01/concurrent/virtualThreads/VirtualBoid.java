@@ -23,15 +23,12 @@ public class VirtualBoid implements Runnable {
     public void run() {
         try {
             while (!Thread.currentThread().isInterrupted()) {
-                // Gestione della pausa
                 while (simulator.isPaused() && !Thread.currentThread().isInterrupted()) {
                     Thread.sleep(50);
                 }
-                
                 if (Thread.currentThread().isInterrupted() || !simulator.isRunning()) {
                     break;
                 }
-                
                 // Aggiorna il boid
                 long t0 = System.currentTimeMillis();
                 boid.updateState(model);
@@ -39,21 +36,17 @@ public class VirtualBoid implements Runnable {
                 if (index >= 0) {
                     model.updateBoid(index, boid);
                 }
-
                 long t1 = System.currentTimeMillis();
                 long durationMs = (t1 - t0);
                 System.out.println("[VTHREAD " + Thread.currentThread().getName() + "] Update time: " + durationMs + " ms");
-                
                 try {
-                    // Sincronizzazione con gli altri thread
+                    // Sincronizzazione con gli altri virtual threads
                     barrier.await();
                 } catch (BrokenBarrierException e) {
-                    // Barriera rotta (probabilmente durante reset)
                     break;
                 }
             }
         } catch (InterruptedException e) {
-            // Thread interrotto, esci silenziosamente
             Thread.currentThread().interrupt();
         }
     }

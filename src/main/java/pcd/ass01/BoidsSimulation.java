@@ -35,7 +35,6 @@ public class BoidsSimulation {
         try {
             nBoids = Integer.parseInt(input);
         } catch(NumberFormatException e) {
-            // se l'input non è valido, viene usato il valore default
             System.out.println("Numero non valido, utilizzo valore di default 1500.");
         }
         

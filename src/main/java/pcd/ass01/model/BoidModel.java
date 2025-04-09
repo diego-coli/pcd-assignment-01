@@ -66,19 +66,18 @@ public class BoidModel {
         lock.lock();
         try {
             boids.set(index, newBoid);
-            // Notifica tutti i thread in attesa che lo stato è cambiato.
+            // Notifica tutti i threads in attesa che lo stato è cambiato
             isUpdated.signalAll();
         } finally {
             lock.unlock();
         }
     }
 
-    // Metodo che fa attendere un thread finché non viene notificato un aggiornamento.
-    // usato per la sincronizzazione tra i thread nell approccio thread based
+    // Metodo che fa attendere un thread finché non viene notificato un aggiornamento
     public void waitForUpdate() throws InterruptedException {
         lock.lock();
         try {
-            // Il thread si blocca finché non viene segnalato (ad es. dopo una updateBoid)
+            // Thread si blocca finché non viene segnalato
             isUpdated.await();
         } finally {
             lock.unlock();
@@ -149,20 +148,13 @@ public class BoidModel {
         }
     }
 
-    /**
-     * Resetta il modello con un nuovo numero di boid.
-     * Questo metodo elimina tutti i boid esistenti e ne crea di nuovi.
-     */
+    // Metodo che resetta la lista di boids e ne crea una nuova
     public void resetWithNewBoids(int nboids) {
         lock.lock();
         try {
-            // Pulisci la lista esistente
             boids.clear();
-            
-            // Ricrea i boid con il metodo esistente
             generateBoids(boids, nboids, width, height, maxSpeed);
-            
-            // Notifica tutti i thread in attesa che lo stato è cambiato
+            // Notifica tutti i threads in attesa che lo stato è cambiato
             isUpdated.signalAll();
         } finally {
             lock.unlock();

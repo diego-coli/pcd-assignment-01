@@ -11,7 +11,7 @@ public class BoidTask implements Runnable {
     private final BoidModel model;
     private final List<Boid> assignedBoids;
     private final BoidsSimulator simulator;
-    private final CyclicBarrier barrier; // Aggiungi barriera per sincronizzazione
+    private final CyclicBarrier barrier;
 
     public BoidTask(BoidModel model, List<Boid> assignedBoids, BoidsSimulator simulator, CyclicBarrier barrier) {
         this.model = model;
@@ -29,7 +29,6 @@ public class BoidTask implements Runnable {
                 while (simulator.isPaused() && simulator.isRunning() && !Thread.currentThread().isInterrupted()) {
                     Thread.sleep(50);
                 }
-                
                 if (!simulator.isRunning() || Thread.currentThread().isInterrupted()) {
                     break;
                 }
@@ -39,12 +38,9 @@ public class BoidTask implements Runnable {
                     if (!simulator.isRunning()) {
                         return;
                     }
-
-
                     long t0 = System.nanoTime();
                     boid.updateState(model);
                     int index = model.getBoidIndex(boid);
-                    
                     if (index >= 0) {
                         model.updateBoid(index, boid);
                     }
@@ -53,7 +49,7 @@ public class BoidTask implements Runnable {
                     System.out.println("[TASK] Elapsed time: " + durationMs + " ns");
                 }
                 
-                // Sincronizzazione con gli altri task e il thread principale
+                // Sincronizzazione con gli altri tasks e il master thread
                 barrier.await();
             }
         } catch (InterruptedException e) {

@@ -35,7 +35,6 @@ public class VirtualSimulation {
         try {
             nBoids = Integer.parseInt(input);
         } catch(NumberFormatException e) {
-            // se l'input non è valido, viene usato il valore default
             System.out.println("Numero non valido, utilizzo valore di default 1500.");
         }
         
@@ -51,8 +50,6 @@ public class VirtualSimulation {
         var sim = new BoidsSimulator(model);
         var view = new BoidsView(model, sim, SCREEN_WIDTH, SCREEN_HEIGHT);
         sim.attachView(view);
-        
-        // Avvia la simulazione
         sim.start();
     }
 }
