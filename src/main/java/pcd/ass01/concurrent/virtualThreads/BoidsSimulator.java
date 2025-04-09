@@ -4,7 +4,6 @@ import pcd.ass01.concurrent.Simulator;
 import pcd.ass01.model.Boid;
 import pcd.ass01.model.BoidModel;
 import pcd.ass01.view.BoidsView;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;

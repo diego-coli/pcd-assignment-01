@@ -2,8 +2,6 @@ package pcd.ass01.concurrent.threads;
 
 import pcd.ass01.model.Boid;
 import pcd.ass01.model.BoidModel;
-
-
 import java.util.List;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.BrokenBarrierException;

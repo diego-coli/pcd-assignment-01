@@ -3,9 +3,7 @@ package pcd.ass01.view;
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-
 import pcd.ass01.model.BoidModel;
-
 import java.awt.*;
 import java.util.Hashtable;
 import pcd.ass01.concurrent.Simulator;;

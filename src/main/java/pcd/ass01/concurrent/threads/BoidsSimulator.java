@@ -2,10 +2,8 @@ package pcd.ass01.concurrent.threads;
 
 import java.util.Optional;
 import java.util.concurrent.CyclicBarrier;
-
 import pcd.ass01.model.*;
 import pcd.ass01.view.BoidsView;
-
 import java.util.ArrayList;
 import java.util.List;
 import pcd.ass01.concurrent.Simulator;;
