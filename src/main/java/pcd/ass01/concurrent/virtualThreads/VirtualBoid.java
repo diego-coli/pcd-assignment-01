@@ -37,7 +37,7 @@ public class VirtualBoid implements Runnable {
                 }
                 long t1 = System.currentTimeMillis();
                 long durationMs = (t1 - t0);
-                System.out.println("[VTHREAD " + Thread.currentThread().getName() + "] Update time: " + durationMs + " ms");
+                // System.out.println("[VTHREAD " + Thread.currentThread().getName() + "] Update time: " + durationMs + " ms");
                 try {
                     // Sincronizzazione con gli altri virtual threads
                     barrier.await();

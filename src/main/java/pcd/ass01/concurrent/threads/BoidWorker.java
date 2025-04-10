@@ -40,7 +40,7 @@ public class BoidWorker extends Thread {
                 }
                 long endTime = System.currentTimeMillis();
                 long duration = endTime - startTime;
-                System.out.println("Worker " + this.getName() + " update time: " + duration + " ms");
+                // System.out.println("Worker " + this.getName() + " update time: " + duration + " ms");
                 try {
                     barrier.await(); // Attende che tutti i workers abbiano finito di aggiornare i boids
                     Thread.sleep(5);
